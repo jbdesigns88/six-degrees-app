@@ -1,38 +1,40 @@
+
 export interface Actor {
-  id: number;
-  type: 'actor';
-  name: string;
-  imageUrl: string;
+    id: number;
+    type: 'actor';
+    name: string;
+    imageUrl: string;
 }
 
 export interface Movie {
-  id: number;
-  type: 'movie';
-  title: string;
-  imageUrl: string;
+    id: number;
+    type: 'movie';
+    title: string;
+    imageUrl: string;
 }
 
 export type ConnectionNodeData = Actor | Movie;
 
-export type GameMode = 'solo' | 'cpu';
+export type GameMode = 'solo' | 'cpu' | 'online';
+export type CpuDifficulty = 'Casual' | 'Pro';
 
-export interface GameState {
-  path: ConnectionNodeData[];
-  choices: ConnectionNodeData[];
-  target: Actor;
-  start: Actor;
-  isPlayerTurn: boolean;
-  gameStatus: 'start' | 'playing' | 'win' | 'lose';
-  loading: boolean;
-  cpuThinking: boolean;
-  elapsedTime: number;
-}
+export type LossReason = 'cpu_won' | 'opponent_won' | 'time_up' | 'too_many_steps';
+
+export type View = 'login' | 'start' | 'game' | 'end' | 'leaderboard' | 'profile' | 'settings' | 'howToPlay' | 'lobby' | 'waiting';
 
 export interface Score {
-  playerName: string;
-  degrees: number;
-  time: number;
-  date: string;
+    username: string;
+    degrees: number;
+    time: number;
 }
 
-export type LossReason = 'cpu_won' | 'time_up' | 'too_many_steps';
+export interface Rating {
+    username: string;
+    rating: number;
+}
+
+export interface Rank {
+    title: string;
+    icon: string;
+    minRating: number;
+}

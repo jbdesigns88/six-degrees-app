@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import * as localStorageService from '../services/localStorageService';
 
 interface LoginScreenProps {
   onLogin: (username: string) => void;
@@ -9,8 +10,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (username.trim()) {
-      onLogin(username.trim());
+    const trimmedUsername = username.trim();
+    if (trimmedUsername) {
+      // Set username and initialize rating if it's a new user
+      localStorageService.setUsername(trimmedUsername);
+      localStorageService.getPlayerRating(trimmedUsername); // This initializes if not exists
+      onLogin(trimmedUsername);
     }
   };
 
@@ -19,8 +24,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       <h1 className="text-4xl md:text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-400">
         Welcome to Six Degrees
       </h1>
-      <p className="text-lg text-gray-300 mb-8 max-w-2xl">
-        Enter a username to track your scores and challenge friends!
+      <p className="text-base text-gray-300 mb-8 max-w-2xl">
+        Test your cinematic knowledge in a race against the clock! The goal is to connect two actors through their shared movies in as few steps as possible. Create a username to track your player rating, climb the leaderboards, and challenge your friends.
       </p>
       <form onSubmit={handleSubmit} className="w-full max-w-sm">
         <input

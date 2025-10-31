@@ -1,22 +1,23 @@
 import React from 'react';
-import { ConnectionNodeData, Actor, GameMode } from '../types';
+import { ConnectionNodeData, Actor, GameMode, LossReason } from '../types';
 import ConnectionNode from './ConnectionNode';
 import LinkIcon from './icons/LinkIcon';
-import { LossReason } from '../types';
 import LoadingSpinner from './icons/LoadingSpinner';
 
 interface EndScreenProps {
   win: boolean;
   lossReason: LossReason | null;
   path: ConnectionNodeData[];
-  cpuPath: ConnectionNodeData[];
+  cpuPath: ConnectionNodeData[]; // or opponentPath
   solutionPath: ConnectionNodeData[];
   loadingSolution: boolean;
   onPlayAgain: () => void;
+  onNavigate: (view: 'start') => void;
   onChallenge: () => void;
   elapsedTime: number;
   target: Actor;
   gameMode: GameMode;
+  ratingChange?: number;
 }
 
 const formatTime = (seconds: number) => {
@@ -44,9 +45,9 @@ const PathDisplay: React.FC<{ title: string, path: ConnectionNodeData[], target:
 );
 
 
-const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, solutionPath, loadingSolution, onPlayAgain, onChallenge, elapsedTime, target, gameMode }) => {
+const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, solutionPath, loadingSolution, onPlayAgain, onChallenge, onNavigate, elapsedTime, target, gameMode, ratingChange }) => {
   const playerDegrees = Math.floor((path.length - 1) / 2);
-  const cpuDegrees = Math.floor((cpuPath.length - 1) / 2);
+  const opponentDegrees = Math.floor((cpuPath.length - 1) / 2);
 
   const getEndGameMessage = () => {
       if (win) {
@@ -58,9 +59,10 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
       }
       switch (lossReason) {
           case 'cpu_won':
+          case 'opponent_won':
               return {
-                  title: "CPU Wins!",
-                  subtitle: `The CPU found the connection in ${cpuDegrees} degrees before you did.`,
+                  title: "You Lost!",
+                  subtitle: `Your opponent found the connection in ${opponentDegrees} degrees first.`,
                   titleClass: "text-red-500"
               };
           case 'time_up':
@@ -97,7 +99,7 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
 
        <div className="w-full max-w-5xl grid grid-cols-1 gap-8 px-2">
             <PathDisplay title="Your Final Path" path={path} target={target} />
-            {gameMode === 'cpu' && <PathDisplay title="CPU's Final Path" path={cpuPath} target={target} />}
+            {gameMode !== 'solo' && <PathDisplay title={gameMode === 'cpu' ? "CPU's Path" : "Opponent's Path"} path={cpuPath} target={target} />}
             {!win && loadingSolution && (
                 <div className="text-center py-4 flex flex-col items-center">
                     <LoadingSpinner />
@@ -111,21 +113,18 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
         
         <div className="flex gap-4 items-center my-6 text-center text-lg">
             <div className="bg-gray-800 p-3 rounded-lg min-w-[90px]">
-                <div className="text-sm text-gray-400">You</div>
-                <div className="text-2xl font-bold text-cyan-400">{playerDegrees}</div>
-                 <div className="text-xs text-gray-500">degrees</div>
-            </div>
-            <div className="bg-gray-800 p-3 rounded-lg min-w-[90px]">
                 <div className="text-sm text-gray-400">Time</div>
                 <div className="text-2xl font-bold text-cyan-400">{formatTime(elapsedTime)}</div>
                 <div className="text-xs text-gray-500">final</div>
             </div>
-            {gameMode === 'cpu' && (
-             <div className="bg-gray-800 p-3 rounded-lg min-w-[90px]">
-                <div className="text-sm text-gray-400">CPU</div>
-                <div className="text-2xl font-bold text-cyan-400">{cpuDegrees}</div>
-                <div className="text-xs text-gray-500">degrees</div>
-            </div>
+            {ratingChange !== undefined && (
+                 <div className="bg-gray-800 p-3 rounded-lg min-w-[90px]">
+                    <div className="text-sm text-gray-400">Rating</div>
+                    <div className={`text-2xl font-bold ${ratingChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {ratingChange > 0 ? `+${ratingChange}` : ratingChange}
+                    </div>
+                    <div className="text-xs text-gray-500">change</div>
+                </div>
             )}
         </div>
 
@@ -136,11 +135,17 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
         >
             Play Again
         </button>
-        <button
+        {gameMode !== 'online' && <button
             onClick={onChallenge}
             className="px-8 py-4 bg-gray-700 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-gray-500"
         >
             Challenge a Friend
+        </button>}
+         <button
+            onClick={() => onNavigate('start')}
+            className="px-8 py-4 bg-gray-700 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-gray-500"
+        >
+            Back to Home
         </button>
       </div>
 

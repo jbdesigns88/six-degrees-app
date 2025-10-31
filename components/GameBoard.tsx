@@ -7,7 +7,7 @@ import GameHeader from './GameHeader';
 
 interface GameBoardProps {
   path: ConnectionNodeData[];
-  cpuPath: ConnectionNodeData[];
+  opponentPath: ConnectionNodeData[];
   target: Actor;
   choices: ConnectionNodeData[];
   onSelectChoice: (choice: ConnectionNodeData) => void;
@@ -15,12 +15,13 @@ interface GameBoardProps {
   elapsedTime: number;
   maxPathLength: number;
   gameMode: GameMode;
+  opponent?: { username: string; rating: number };
 }
 
 const ChoiceCard: React.FC<{ choice: ConnectionNodeData; onSelect: () => void; }> = ({ choice, onSelect }) => {
     const [imgLoaded, setImgLoaded] = useState(false);
     const name = choice.type === 'actor' ? choice.name : choice.title;
-    const placeholderUrl = `https://via.placeholder.com/200x300/1f2937/4b5563?text=${encodeURIComponent(name)}`;
+    const placeholderUrl = `https://via.placeholder.com/200x300/1f2f37/4b5563?text=${encodeURIComponent(name)}`;
 
     return (
         <button
@@ -56,7 +57,7 @@ const formatTime = (seconds: number) => {
 
 const GameBoard: React.FC<GameBoardProps> = ({
   path,
-  cpuPath,
+  opponentPath,
   target,
   choices,
   onSelectChoice,
@@ -64,12 +65,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
   elapsedTime,
   maxPathLength,
   gameMode,
+  opponent,
 }) => {
   const lastNodeInPath = path[path.length - 1];
   const choiceType = lastNodeInPath?.type === 'actor' ? 'movies' : 'actors';
   const startActor = path[0] as Actor;
   const playerDegrees = Math.floor(path.length / 2);
-  const cpuDegrees = Math.floor(cpuPath.length / 2);
+  const opponentDegrees = Math.floor(opponentPath.length / 2);
 
   return (
     <div className="flex flex-col">
@@ -103,6 +105,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         </div>
       </div>
+       {gameMode === 'online' && opponent && (
+            <div className="text-center text-sm text-gray-400 p-2 bg-gray-800">
+                Opponent: <span className="font-bold text-amber-300">{opponent.username}</span> ({opponent.rating}) - Path Length: {opponentPath.length}
+            </div>
+        )}
 
       <hr className="border-gray-700" />
 
@@ -123,15 +130,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
                       <div className="text-2xl font-bold text-white">{playerDegrees}</div>
                       <div className="text-xs text-gray-400">degrees</div>
                   </div>
-                  <div className={`px-4 ${gameMode === 'cpu' ? 'border-x border-gray-700' : ''}`}>
+                  <div className={`px-4 ${gameMode !== 'solo' ? 'border-x border-gray-700' : ''}`}>
                       <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Time</div>
                       <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
                       <div className="text-xs text-gray-400">elapsed</div>
                   </div>
-                  {gameMode === 'cpu' && (
+                  {gameMode !== 'solo' && (
                     <div className="px-4">
-                        <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
-                        <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
+                        <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">{gameMode === 'cpu' ? 'CPU' : 'Opponent'}</div>
+                        <div className="text-2xl font-bold text-white">{opponentDegrees}</div>
                         <div className="text-xs text-gray-400">degrees</div>
                     </div>
                   )}

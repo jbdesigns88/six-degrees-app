@@ -1,60 +1,69 @@
+
 import React from 'react';
-import { Actor, GameMode } from '../types';
-import ConnectionNode from './ConnectionNode';
+import { Rating, View } from '../types';
+import { getRank } from '../services/ratingService';
 
 interface StartScreenProps {
-  onStartGame: (mode: GameMode) => void;
-  onShowLeaderboard: () => void;
-  start: Actor;
-  target: Actor;
+  onStartGame: (mode: 'solo' | 'cpu', difficulty?: 'Casual' | 'Pro') => void;
+  onNavigate: (view: View) => void;
+  playerRating: Rating | null;
 }
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboard, start, target }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onNavigate, playerRating }) => {
+  const rank = playerRating ? getRank(playerRating.rating) : null;
+
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-gray-900 text-white">
+      {playerRating && rank && (
+        <div className="mb-8 p-4 bg-gray-800/50 rounded-lg">
+          <div className="text-sm text-gray-400">Your Rating</div>
+          <div className="text-3xl font-bold font-mono text-cyan-300">{playerRating.rating}</div>
+          <div className="text-amber-300 mt-1">{rank.icon} {rank.title}</div>
+        </div>
+      )}
       <h1 className="text-4xl md:text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-400">
         Six Degrees
       </h1>
-      <p className="text-lg text-gray-300 mb-8 max-w-2xl">
-        Can you connect two stars of the silver screen? Your challenge is to link the starting actor to the target actor in six moves or less.
+      <p className="text-base text-gray-300 mb-8 max-w-2xl">
+        Choose a game mode to test your cinematic knowledge.
       </p>
 
-      <div className="flex items-center justify-center w-full max-w-lg gap-4 sm:gap-6 mb-8 px-4">
-        <div className="w-2/5 max-w-40">
-          <ConnectionNode data={start} isFirst={true} />
-        </div>
-        <div className="flex flex-col items-center text-gray-400 font-bold text-lg sm:text-2xl animate-pulse flex-shrink-0">
-            <span className="mb-2">to</span>
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-            </svg>
-            <span className="mt-2">link</span>
-        </div>
-        <div className="w-2/5 max-w-40">
-          <ConnectionNode data={target} isLast={true} />
-        </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-xl">
+        {/* Solo Practice */}
+        <button onClick={() => onStartGame('solo')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-cyan-500/30 focus:outline-none focus:ring-2 focus:ring-cyan-400">
+          <h2 className="text-xl font-bold text-cyan-300">Solo Practice</h2>
+          <p className="text-gray-400 mt-1 text-sm">Hone your skills with no pressure. The clock is your only opponent.</p>
+        </button>
+
+        {/* Play Online */}
+        <button onClick={() => onNavigate('lobby')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-amber-500/30 focus:outline-none focus:ring-2 focus:ring-amber-400">
+          <h2 className="text-xl font-bold text-amber-300">Play Online</h2>
+          <p className="text-gray-400 mt-1 text-sm">Challenge other players in real-time and climb the global rankings.</p>
+        </button>
+        
+        {/* Play vs CPU Casual */}
+        <button onClick={() => onStartGame('cpu', 'Casual')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-green-500/30 focus:outline-none focus:ring-2 focus:ring-green-400">
+          <h2 className="text-xl font-bold text-green-300">Vs. CPU (Casual)</h2>
+          <p className="text-gray-400 mt-1 text-sm">A relaxed match against an AI opponent. Good for learning the ropes.</p>
+        </button>
+
+        {/* Play vs CPU Pro */}
+        <button onClick={() => onStartGame('cpu', 'Pro')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-red-500/30 focus:outline-none focus:ring-2 focus:ring-red-400">
+          <h2 className="text-xl font-bold text-red-300">Vs. CPU (Pro)</h2>
+          <p className="text-gray-400 mt-1 text-sm">Face a tougher AI. A true test of your connection-finding speed.</p>
+        </button>
       </div>
       
-      <div className="flex flex-col sm:flex-row gap-4">
-        <button
-          onClick={() => onStartGame('solo')}
-          className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-cyan-300"
-        >
-          Play Solo
+      <div className="mt-8 flex gap-4">
+        <button onClick={() => onNavigate('howToPlay')} className="text-gray-400 hover:text-white transition-colors">
+          How to Play
         </button>
-        <button
-          onClick={() => onStartGame('cpu')}
-          className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-amber-300"
-        >
-          Play vs. CPU
+        <span className="text-gray-600">|</span>
+        <button onClick={() => onNavigate('leaderboard')} className="text-gray-400 hover:text-white transition-colors">
+          Leaderboard
         </button>
       </div>
-       <button 
-        onClick={onShowLeaderboard}
-        className="mt-6 text-gray-400 hover:text-white transition-colors underline"
-      >
-        View Leaderboard
-      </button>
+
     </div>
   );
 };
