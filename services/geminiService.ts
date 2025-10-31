@@ -84,8 +84,33 @@ export const getActorById = async (id: number): Promise<Actor> => {
 };
 
 export const getInitialActors = async (): Promise<{ start: Actor, target: Actor }> => {
+    const actorCategories = [
+        'a classic Hollywood star from the Golden Age',
+        'a blockbuster action hero from the 2000s',
+        'a critically acclaimed indie film darling',
+        'a star from a popular 90s sitcom',
+        'an actor known primarily for voice work in animation',
+        'a martial arts movie star',
+        'a beloved romantic comedy lead from the 1990s',
+        'a character actor known for transformative roles',
+        'a breakout star from a recent sci-fi series',
+        'an icon of European cinema',
+        'a Bollywood superstar',
+        'a director who also frequently acts in films'
+    ];
+
+    const getRandomCategory = () => actorCategories[Math.floor(Math.random() * actorCategories.length)];
+    let category1 = getRandomCategory();
+    let category2 = getRandomCategory();
+    // Ensure the categories are different for more variety
+    while (category1 === category2) {
+        category2 = getRandomCategory();
+    }
+
     const prompt = `
         Generate two famous but distinct actors for a "Six Degrees of Separation" style game.
+        The first actor should be ${category1}.
+        The second actor should be ${category2}.
         Return their names in a JSON object. Example: {"start_actor_name": "Tom Hanks", "target_actor_name": "Zendaya"}
     `;
 

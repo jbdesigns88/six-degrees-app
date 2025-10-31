@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserProfile, View } from '../types';
+import { UserProfile } from '../types';
 import StartScreen from './StartScreen';
 import LobbyScreen from './LobbyScreen';
 import BottomNavBar from './BottomNavBar';
@@ -10,29 +10,21 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ userProfile }) => {
-    const [view, setView] = useState<View>('start');
+    const [view, setView] = useState<'start' | 'lobby'>('start');
     const navigate = useNavigate();
 
-    const handleCreateNewChallenge = async () => {
-        // The challenge creation is now handled inside GamePage.
-        // We navigate to a special "new" route which GamePage will interpret.
+    const handleCreateNewChallenge = () => {
+        // Navigate to a special "new" route which GamePage will interpret
+        // to create a new online challenge.
         navigate(`/game/new`);
-    };
-
-    const handleNavigate = (newView: View) => {
-        if (newView === 'leaderboard' || newView === 'profile' || newView === 'settings' || newView === 'howToPlay') {
-            navigate(`/${newView}`);
-        } else {
-            setView(newView);
-        }
     };
     
     const renderContent = () => {
         switch (view) {
             case 'start':
                 return <StartScreen 
-                            onStartGame={(mode, diff) => navigate('/game/solo')}
-                            onNavigate={handleNavigate}
+                            onStartGame={() => navigate('/game/solo')}
+                            onSwitchToLobby={() => setView('lobby')}
                             playerRating={userProfile} 
                         />;
             case 'lobby':
@@ -44,20 +36,17 @@ const HomePage: React.FC<HomePageProps> = ({ userProfile }) => {
                         />;
             default:
                  return <StartScreen 
-                            onStartGame={(mode, diff) => navigate('/game/solo')}
-                            onNavigate={handleNavigate}
+                            onStartGame={() => navigate('/game/solo')}
+                            onSwitchToLobby={() => setView('lobby')}
                             playerRating={userProfile} 
                         />;
         }
     }
-    
-    // Determine which views show the BottomNavBar
-    const showNav = ['start', 'lobby'].includes(view);
 
     return (
-        <div className="h-full" style={{ paddingBottom: showNav ? '70px' : '0' }}>
+        <div className="h-full" style={{ paddingBottom: '70px' }}>
             {renderContent()}
-            {showNav && <BottomNavBar currentView={view} onNavigate={(v) => navigate(`/${v}`)} />}
+            <BottomNavBar />
         </div>
     )
 };

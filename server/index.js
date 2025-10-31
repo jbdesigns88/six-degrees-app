@@ -194,15 +194,20 @@ apiRouter.post('/challenge/create', (req, res) => {
     res.status(201).send({ message: 'Challenge created' });
 });
 
+// Define API routes BEFORE serving static files and the catch-all
 app.use('/api', apiRouter);
 
-const staticPath = path.resolve(__dirname, '..');
+// Serve static files from the project root
+const staticPath = path.join(__dirname, '..');
 console.log(`Serving static files from: ${staticPath}`);
 app.use(express.static(staticPath));
 
+// The 'catchall' handler: for any request that doesn't match one above,
+// send back the app's index.html file. This allows React Router to handle the route.
 app.get('*', (req, res) => {
-    res.sendFile(path.resolve(staticPath, 'index.html'));
+    res.sendFile(path.join(staticPath, 'index.html'));
 });
+
 
 server.listen(PORT, () => {
     console.log(`Server listening on port ${PORT}`);
