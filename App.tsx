@@ -202,9 +202,9 @@ const App: React.FC = () => {
     };
     
     return (
-        <main className="bg-gray-900 text-white h-screen flex flex-col font-sans">
+        <main className="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
             <Header />
-            <div className="flex-grow overflow-hidden">
+            <div className="flex-grow">
               {renderContent()}
             </div>
         </main>

@@ -70,7 +70,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const cpuDegrees = Math.floor(cpuPath.length / 2);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col">
       <GameHeader
         startActor={startActor}
         targetActor={target}
@@ -105,48 +105,44 @@ const GameBoard: React.FC<GameBoardProps> = ({
       <hr className="border-gray-700" />
 
       {/* Choices Area */}
-      <div className="flex-grow flex flex-col items-center justify-center relative p-4">
+      <div className="p-4">
         {loadingChoices ? (
-          <div className="text-center">
+          <div className="text-center py-8">
             <LoadingSpinner />
             <p className="mt-4 text-gray-400">
                 {`Finding ${choiceType}...`}
             </p>
           </div>
         ) : (
-          <div className="w-full h-full flex flex-col">
-            <div className="flex-shrink-0">
-                <div className="flex justify-around items-center w-full max-w-sm mx-auto mb-4 text-center border-y border-gray-700 py-3">
-                    <div className="px-4">
-                        <div className="text-sm font-semibold text-cyan-300 uppercase tracking-wider">You</div>
-                        <div className="text-2xl font-bold text-white">{playerDegrees}</div>
-                        <div className="text-xs text-gray-400">degrees</div>
-                    </div>
-                    <div className="px-4 border-x border-gray-700">
-                        <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Time</div>
-                        <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
-                        <div className="text-xs text-gray-400">elapsed</div>
-                    </div>
-                    <div className="px-4">
-                        <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
-                        <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
-                        <div className="text-xs text-gray-400">degrees</div>
-                    </div>
-                </div>
-                <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center">
-                    Choose the next connection:
-                </h2>
-            </div>
-            <div className="overflow-y-auto flex-grow -mx-4">
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-4">
-                {choices.map((choice) => (
-                  <ChoiceCard
-                    key={`${choice.type}-${choice.id}`}
-                    choice={choice}
-                    onSelect={() => onSelectChoice(choice)}
-                  />
-                ))}
+          <div className="w-full">
+              <div className="flex justify-around items-center w-full max-w-sm mx-auto mb-4 text-center border-y border-gray-700 py-3">
+                  <div className="px-4">
+                      <div className="text-sm font-semibold text-cyan-300 uppercase tracking-wider">You</div>
+                      <div className="text-2xl font-bold text-white">{playerDegrees}</div>
+                      <div className="text-xs text-gray-400">degrees</div>
+                  </div>
+                  <div className="px-4 border-x border-gray-700">
+                      <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Time</div>
+                      <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
+                      <div className="text-xs text-gray-400">elapsed</div>
+                  </div>
+                  <div className="px-4">
+                      <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
+                      <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
+                      <div className="text-xs text-gray-400">degrees</div>
+                  </div>
               </div>
+              <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center">
+                  Choose the next connection:
+              </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {choices.map((choice) => (
+                <ChoiceCard
+                  key={`${choice.type}-${choice.id}`}
+                  choice={choice}
+                  onSelect={() => onSelectChoice(choice)}
+                />
+              ))}
             </div>
           </div>
         )}
