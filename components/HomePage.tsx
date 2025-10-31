@@ -4,6 +4,9 @@ import { UserProfile } from '../types';
 import StartScreen from './StartScreen';
 import LobbyScreen from './LobbyScreen';
 import BottomNavBar from './BottomNavBar';
+import * as geminiService from '../services/geminiService';
+import { socketService } from '../services/socketService';
+import LoadingSpinner from './icons/LoadingSpinner';
 
 interface HomePageProps {
     userProfile: UserProfile;
@@ -11,15 +14,39 @@ interface HomePageProps {
 
 const HomePage: React.FC<HomePageProps> = ({ userProfile }) => {
     const [view, setView] = useState<'start' | 'lobby'>('start');
+    const [isCreating, setIsCreating] = useState(false);
     const navigate = useNavigate();
 
-    const handleCreateNewChallenge = () => {
-        // Navigate to a special "new" route which GamePage will interpret
-        // to create a new online challenge.
-        navigate(`/game/new`);
+    const handleCreateNewChallenge = async () => {
+        setIsCreating(true);
+        try {
+            const { start, target } = await geminiService.getInitialActors();
+            socketService.emit('challenge:create', { startId: start.id, targetId: target.id }, (response) => {
+                setIsCreating(false);
+                if (response.ok) {
+                    navigate(`/game/${response.challengeId}`);
+                } else {
+                    alert(`Could not create challenge: ${response.message}`);
+                }
+            });
+        } catch (error) {
+            setIsCreating(false);
+            console.error("Error creating challenge:", error);
+            alert('Could not get initial actors from the server. Please try again.');
+        }
     };
     
     const renderContent = () => {
+        if (isCreating) {
+            return (
+                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                    <LoadingSpinner />
+                    <h1 className="text-2xl font-bold mt-4">Creating Your Challenge...</h1>
+                    <p className="text-gray-400">Finding two perfect actors for your game.</p>
+                </div>
+            )
+        }
+
         switch (view) {
             case 'start':
                 return <StartScreen 

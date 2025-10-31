@@ -7,7 +7,6 @@ import ConnectionNodeSkeleton from './ConnectionNodeSkeleton';
 import LinkIcon from './icons/LinkIcon';
 
 import * as geminiService from '../services/geminiService';
-import * as challengeService from '../services/challengeService';
 import { socketService } from '../services/socketService';
 
 import { Actor, ConnectionNodeData, GameMode, LossReason, UserProfile } from '../types';
@@ -38,7 +37,7 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
     const [ratingChange, setRatingChange] = useState<number | undefined>(undefined);
     
     // Online state
-    const [challengeId, setChallengeId] = useState<string | null>(null);
+    const [challengeId, setChallengeId] = useState<string | null>(challengeIdFromUrl ?? null);
     const [opponent, setOpponent] = useState<UserProfile | null>(null);
     const [opponentPath, setOpponentPath] = useState<ConnectionNodeData[]>([]);
 
@@ -47,21 +46,6 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
     const stopTimer = useCallback(() => {
         if (timerRef.current) clearInterval(timerRef.current);
     }, []);
-
-    const startTimer = useCallback(() => {
-        stopTimer();
-        setElapsedTime(0);
-        timerRef.current = setInterval(() => {
-            setElapsedTime(prev => {
-                if (prev >= GAME_TIME_LIMIT - 1) {
-                    stopTimer();
-                    endGame(false, 'time_up');
-                    return GAME_TIME_LIMIT;
-                }
-                return prev + 1;
-            });
-        }, 1000);
-    }, [stopTimer]);
 
     const endGame = useCallback(async (didPlayerWin: boolean, reason: LossReason | null = null) => {
         stopTimer();
@@ -81,48 +65,53 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
             }
         }
     }, [stopTimer, startActor, targetActor]);
+    
+    const startTimer = useCallback(() => {
+        stopTimer();
+        setElapsedTime(0);
+        timerRef.current = setInterval(() => {
+            setElapsedTime(prev => {
+                if (prev >= GAME_TIME_LIMIT - 1) {
+                    stopTimer();
+                    endGame(false, 'time_up');
+                    return GAME_TIME_LIMIT;
+                }
+                return prev + 1;
+            });
+        }, 1000);
+    }, [stopTimer, endGame]);
 
-    const initializeGame = async (
+    const initializeGame = useCallback(async (
         mode: GameMode,
         start: Actor, 
         target: Actor
     ) => {
+        setGameMode(mode);
         setStartActor(start);
         setTargetActor(target);
         setPath([start]);
         if (mode === 'online') setOpponentPath([start]);
         
+        setLoadingChoices(true);
         const initialChoices = await geminiService.getChoices(start);
         setChoices(initialChoices);
+        setLoadingChoices(false);
         setGameState('playing');
         startTimer();
-    };
+    }, [startTimer]);
 
     // Main effect to setup the game based on URL
     useEffect(() => {
         const setup = async () => {
-            if (!challengeIdFromUrl) return;
+            if (!challengeId) return;
 
-            if (challengeIdFromUrl === 'solo') {
-                setGameMode('solo');
+            if (challengeId === 'solo') {
                 const { start, target } = await geminiService.getInitialActors();
                 initializeGame('solo', start, target);
-            } else if (challengeIdFromUrl === 'new') {
-                setGameMode('online');
-                const { start, target } = await geminiService.getInitialActors();
-                const newChallengeId = `${userProfile.username.replace(/\s+/g, '-')}-${Date.now()}`;
-                await challengeService.createChallenge(newChallengeId, start.id, target.id);
-                setChallengeId(newChallengeId);
-                socketService.emit('join', { challengeId: newChallengeId, userId: userProfile.id });
-                setGameState('waiting');
-                // Replace URL with the new challenge ID
-                navigate(`/game/${newChallengeId}`, { replace: true });
             } else {
                 setGameMode('online');
-                setChallengeId(challengeIdFromUrl);
-                socketService.emit('join', { challengeId: challengeIdFromUrl, userId: userProfile.id });
+                socketService.emit('join', { challengeId: challengeId, userId: userProfile.id });
                 setGameState('waiting');
-
             }
         };
         setup().catch(err => {
@@ -130,7 +119,7 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
             alert("There was an error setting up the game. Returning to the main menu.");
             navigate('/');
         });
-    }, [challengeIdFromUrl, userProfile.id, userProfile.username, navigate]);
+    }, [challengeId, userProfile.id, navigate, initializeGame]);
     
     // WebSocket Effects for online games
     useEffect(() => {
@@ -161,30 +150,24 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
             }));
         }
         return () => unsubs.forEach(u => u());
-
-    }, [gameMode, userProfile.id, endGame, navigate]);
+    }, [gameMode, userProfile.id, endGame, navigate, initializeGame]);
 
     const handleSelectChoice = useCallback(async (choice: ConnectionNodeData) => {
         if (loadingChoices || !targetActor) return;
-
         const newPath = [...path, choice];
         setPath(newPath);
-        if (gameMode === 'online') {
-            socketService.emit('game:update', { challengeId, path: newPath });
+        if (gameMode === 'online' && challengeId) {
+            socketService.emit('game:update', { path: newPath });
         }
         setChoices([]);
-
-        if (gameMode !== 'online') {
-            if (choice.id === targetActor.id) {
-                endGame(true);
-                return;
-            }
-            if (newPath.length >= MAX_PATH_LENGTH) {
-                endGame(false, 'too_many_steps');
-                return;
-            }
+        if (choice.id === targetActor.id) {
+            if (gameMode !== 'online') endGame(true); // Online win is determined by server
+            return;
         }
-        
+        if (newPath.length >= MAX_PATH_LENGTH) {
+            if (gameMode !== 'online') endGame(false, 'too_many_steps');
+            return;
+        }
         setLoadingChoices(true);
         try {
             const nextChoices = await geminiService.getChoices(choice);
@@ -198,8 +181,17 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
 
     const handleCancelChallenge = () => {
         if (challengeId) {
-            socketService.emit('challenge:cancel', { challengeId });
+            socketService.emit('challenge:cancel', {});
         }
+        navigate('/');
+    };
+    
+    const handlePlayAgain = () => {
+        navigate(0); // Refresh the page to start a new game of the same type
+    };
+    
+    const handleNewChallenge = () => {
+        // A 'new' challenge is created from the home page now
         navigate('/');
     };
 
@@ -216,10 +208,10 @@ const GamePage: React.FC<GamePageProps> = ({ userProfile }) => {
     }
 
     if (gameState === 'ended' && targetActor) {
-        return <EndScreen win={win} lossReason={lossReason} path={path} cpuPath={opponentPath} solutionPath={solutionPath} loadingSolution={loadingSolution} onPlayAgain={() => navigate('/game/solo')} onChallenge={() => navigate('/game/new')} onNavigate={() => navigate('/')} elapsedTime={elapsedTime} target={targetActor} gameMode={gameMode} ratingChange={ratingChange} />;
+        return <EndScreen win={win} lossReason={lossReason} path={path} cpuPath={opponentPath} solutionPath={solutionPath} loadingSolution={loadingSolution} onPlayAgain={() => navigate(`/game/${gameMode === 'solo' ? 'solo' : challengeId}`)} onChallenge={handleNewChallenge} onNavigate={() => navigate('/')} elapsedTime={elapsedTime} target={targetActor} gameMode={gameMode} ratingChange={ratingChange} />;
     }
     
-    return null; // Should not be reached
+    return null;
 };
 
 export default GamePage;

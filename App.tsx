@@ -28,9 +28,9 @@ const App: React.FC = () => {
             const profile = await userService.loginOrRegister(name);
             setUserProfile(profile);
             localStorageService.setUsername(name);
-            socketService.connect();
+            // Connect socket with user ID for authentication
+            socketService.connect(profile.id);
 
-            // Check if there was a pending game join from the URL
             const pendingChallengeId = location.state?.pendingChallengeId;
             if (pendingChallengeId) {
                 navigate(`/game/${pendingChallengeId}`, { replace: true });
@@ -45,7 +45,6 @@ const App: React.FC = () => {
         }
     }, [navigate, location.state]);
     
-    // Check for stored username on initial load
     useEffect(() => {
         const storedUsername = localStorageService.getUsername();
         if (storedUsername) {
@@ -53,7 +52,7 @@ const App: React.FC = () => {
         } else {
             setIsLoggingIn(false);
         }
-    }, []); // Intentionally empty dependency array to run only once
+    }, [handleLogin]);
 
     const handleLogout = () => {
         localStorageService.clearUsername();
@@ -63,13 +62,13 @@ const App: React.FC = () => {
     };
     
     useEffect(() => {
-        const unsubs: (()=>void)[] = [];
+        let unsub: (()=>void) | undefined;
         if(userProfile) {
-            unsubs.push(socketService.on('rating:update', (payload) => {
+            unsub = socketService.on('rating:update', (payload) => {
                  setUserProfile(p => p ? { ...p, rating: payload.newRating } : null);
-            }));
+            });
         }
-        return () => unsubs.forEach(u => u());
+        return () => unsub?.();
     }, [userProfile]);
 
     if (isLoggingIn) {

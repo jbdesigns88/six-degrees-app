@@ -3,16 +3,23 @@ import { io, Socket } from 'socket.io-client';
 class SocketService {
     private socket: Socket | null = null;
 
-    connect() {
-        if (this.socket) {
+    connect(userId: string) {
+        if (this.socket?.connected) {
             return;
         }
+        
+        // Disconnect any existing socket before creating a new one
+        if (this.socket) {
+            this.socket.disconnect();
+        }
 
-        // With no args, io() connects to the same host that serves the page.
-        this.socket = io();
+        // Pass the userId as a query parameter for authentication
+        this.socket = io({
+            query: { userId }
+        });
 
         this.socket.on('connect', () => {
-            console.log('Connected to socket server');
+            console.log('Connected to socket server with user ID:', userId);
         });
 
         this.socket.on('disconnect', () => {
@@ -27,22 +34,23 @@ class SocketService {
         }
     }
 
-    emit(event: string, data: any) {
+    emit(event: string, data: any, ack?: (response: any) => void) {
         if (this.socket) {
-            this.socket.emit(event, data);
+            if (ack) {
+                this.socket.emit(event, data, ack);
+            } else {
+                this.socket.emit(event, data);
+            }
         }
     }
 
     on(event: string, callback: (data: any) => void): () => void {
         if (this.socket) {
             this.socket.on(event, callback);
-            // Return an unsubscribe function
             return () => this.socket?.off(event, callback);
         }
-        // If socket is not available, return an empty function
         return () => {};
     }
 }
 
-// Export a singleton instance of the service
 export const socketService = new SocketService();
