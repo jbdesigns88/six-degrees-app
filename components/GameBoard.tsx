@@ -1,0 +1,129 @@
+import React, { useState } from 'react';
+import { ConnectionNodeData, Actor } from '../types';
+import ConnectionNode from './ConnectionNode';
+import LinkIcon from './icons/LinkIcon';
+import LoadingSpinner from './icons/LoadingSpinner';
+import GameHeader from './GameHeader';
+
+interface GameBoardProps {
+  path: ConnectionNodeData[];
+  target: Actor;
+  choices: ConnectionNodeData[];
+  onSelectChoice: (choice: ConnectionNodeData) => void;
+  loadingChoices: boolean;
+  elapsedTime: number;
+  maxPathLength: number;
+}
+
+const ChoiceCard: React.FC<{ choice: ConnectionNodeData; onSelect: () => void; }> = ({ choice, onSelect }) => {
+    const [imgLoaded, setImgLoaded] = useState(false);
+    const name = choice.type === 'actor' ? choice.name : choice.title;
+    const placeholderUrl = `https://via.placeholder.com/200x288/1f2937/4b5563?text=${encodeURIComponent(name)}`;
+
+    return (
+        <button
+            onClick={onSelect}
+            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-transform transform hover:scale-105 hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-cyan-400"
+          >
+            <div className="relative w-full h-40 md:h-48">
+              {!imgLoaded && <div className="absolute inset-0 bg-gray-700 animate-pulse"></div>}
+              <img 
+                  src={choice.imageUrl} 
+                  alt={name} 
+                  className={`w-full h-full object-cover transition-opacity duration-300 ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+                  onLoad={() => setImgLoaded(true)}
+                  onError={(e) => {
+                      e.currentTarget.src = placeholderUrl;
+                      setImgLoaded(true);
+                  }}
+              />
+            </div>
+            <div className="p-2 text-center">
+              <p className="font-bold text-sm text-white truncate">{name}</p>
+              <p className="text-xs text-cyan-400 capitalize">{choice.type}</p>
+            </div>
+          </button>
+    );
+}
+
+const GameBoard: React.FC<GameBoardProps> = ({
+  path,
+  target,
+  choices,
+  onSelectChoice,
+  loadingChoices,
+  elapsedTime,
+  maxPathLength,
+}) => {
+  const lastNodeInPath = path[path.length - 1];
+  const choiceType = lastNodeInPath?.type === 'actor' ? 'movies' : 'actors';
+  const startActor = path[0] as Actor;
+
+  return (
+    <div className="flex flex-col h-full">
+      <GameHeader
+        startActor={startActor}
+        targetActor={target}
+        path={path}
+        maxPathLength={maxPathLength}
+        elapsedTime={elapsedTime}
+      />
+      
+      {/* Path Carousel */}
+      <div className="flex-shrink-0">
+        <div className="flex items-center overflow-x-auto p-4 snap-x snap-mandatory space-x-3" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} aria-roledescription="carousel" aria-label="Connection Path">
+          {path.map((node, index) => (
+            <React.Fragment key={`${node.type}-${node.id}`}>
+              <div className="snap-center">
+                <ConnectionNode data={node} isFirst={index === 0} />
+              </div>
+              {index < path.length - 1 && <LinkIcon />}
+            </React.Fragment>
+          ))}
+          <div className="snap-center text-center flex-shrink-0 w-48 px-4 flex flex-col items-center justify-center h-full text-gray-400">
+            <p className="animate-pulse mb-2 text-sm">... trying to reach ...</p>
+             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+            </svg>
+          </div>
+          <div className="snap-center">
+            <ConnectionNode data={target} isLast={true} />
+          </div>
+        </div>
+      </div>
+
+      <hr className="border-gray-700" />
+
+      {/* Choices Area */}
+      <div className="flex-grow flex flex-col items-center justify-center relative p-4">
+        {loadingChoices ? (
+          <div className="text-center">
+            <LoadingSpinner />
+            <p className="mt-4 text-gray-400">
+                {`Finding ${choiceType}...`}
+            </p>
+          </div>
+        ) : (
+          <div className="w-full h-full flex flex-col">
+            <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center flex-shrink-0">
+              Choose the next connection:
+            </h2>
+            <div className="overflow-y-auto flex-grow -mx-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+                {choices.map((choice) => (
+                  <ChoiceCard
+                    key={`${choice.type}-${choice.id}`}
+                    choice={choice}
+                    onSelect={() => onSelectChoice(choice)}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default GameBoard;
