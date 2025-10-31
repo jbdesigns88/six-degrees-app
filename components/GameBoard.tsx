@@ -84,7 +84,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         <div className="flex items-center overflow-x-auto p-4 snap-x snap-mandatory space-x-3" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} aria-roledescription="carousel" aria-label="Connection Path">
           {path.map((node, index) => (
             <React.Fragment key={`${node.type}-${node.id}`}>
-              <div className="snap-center">
+              <div className="snap-center w-[72vw] sm:w-[58vw] md:w-[40vw] lg:w-56">
                 <ConnectionNode data={node} isFirst={index === 0} />
               </div>
               {index < path.length - 1 && <LinkIcon />}
@@ -96,7 +96,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 8l4 4m0 0l-4 4m4-4H3" />
             </svg>
           </div>
-          <div className="snap-center">
+          <div className="snap-center w-[72vw] sm:w-[58vw] md:w-[40vw] lg:w-56">
             <ConnectionNode data={target} isLast={true} />
           </div>
         </div>

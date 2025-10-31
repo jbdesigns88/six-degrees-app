@@ -27,7 +27,7 @@ const PathDisplay: React.FC<{ title: string, path: ConnectionNodeData[], target:
          <div className="flex items-center overflow-x-auto p-2 snap-x snap-mandatory space-x-2 w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {path.map((node, index) => (
                 <React.Fragment key={`${node.type}-${node.id}-${index}`}>
-                    <div className="snap-center">
+                    <div className="snap-center w-[72vw] sm:w-[58vw] md:w-[40vw] lg:w-56">
                         <ConnectionNode data={node} isFirst={index === 0} isLast={node.type === 'actor' && node.id === target.id} />
                     </div>
                     {index < path.length - 1 && <LinkIcon />}

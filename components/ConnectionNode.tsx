@@ -14,7 +14,7 @@ const ConnectionNode: React.FC<ConnectionNodeProps> = ({ data, isFirst, isLast }
   const placeholderUrl = `https://via.placeholder.com/224x320/1f2937/4b5563?text=${encodeURIComponent(name)}`;
   
   const cardClasses = `
-    relative w-[72vw] aspect-[2/3] sm:w-[58vw] md:w-[40vw] lg:w-56 flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden 
+    relative w-full aspect-[2/3] flex-shrink-0 bg-gray-800 rounded-lg overflow-hidden 
     shadow-lg shadow-black/50 transition-all duration-500 ease-in-out transform
     hover:scale-105 hover:shadow-amber-500/30
     ${isLast ? 'border-2 border-amber-400' : 'border-2 border-transparent'}
