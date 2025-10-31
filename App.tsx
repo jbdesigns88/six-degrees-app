@@ -29,6 +29,10 @@ const App: React.FC = () => {
     // CPU state
     const [cpuPath, setCpuPath] = useState<ConnectionNodeData[]>([]);
     
+    // Solution state
+    const [solutionPath, setSolutionPath] = useState<ConnectionNodeData[]>([]);
+    const [loadingSolution, setLoadingSolution] = useState(false);
+    
     // Shared state
     const [startActor, setStartActor] = useState<Actor | null>(null);
     const [targetActor, setTargetActor] = useState<Actor | null>(null);
@@ -43,6 +47,8 @@ const App: React.FC = () => {
         setChoices([]);
         setElapsedTime(0);
         setLossReason(null);
+        setSolutionPath([]);
+        setLoadingSolution(false);
         isGameActiveRef.current = false;
         
         try {
@@ -100,8 +106,17 @@ const App: React.FC = () => {
                 date: new Date().toISOString()
             };
             localStorageService.saveScore(score);
+        } else if (status === 'lose' && startActor && targetActor) {
+            setLoadingSolution(true);
+            geminiService.getSolutionPath(startActor, targetActor)
+                .then(setSolutionPath)
+                .catch(err => {
+                    console.error("Failed to get solution path:", err);
+                    setSolutionPath([]);
+                })
+                .finally(() => setLoadingSolution(false));
         }
-    }, [username, path, elapsedTime]);
+    }, [username, path, elapsedTime, startActor, targetActor]);
     
     // Game Timer
     useEffect(() => {
@@ -245,6 +260,8 @@ const App: React.FC = () => {
                             lossReason={lossReason}
                             path={path} 
                             cpuPath={cpuPath}
+                            solutionPath={solutionPath}
+                            loadingSolution={loadingSolution}
                             onPlayAgain={() => initializeNewGame()} 
                             onChallenge={() => setShowChallengeModal(true)}
                             elapsedTime={elapsedTime} 

@@ -3,12 +3,15 @@ import { ConnectionNodeData, Actor, GameMode } from '../types';
 import ConnectionNode from './ConnectionNode';
 import LinkIcon from './icons/LinkIcon';
 import { LossReason } from '../types';
+import LoadingSpinner from './icons/LoadingSpinner';
 
 interface EndScreenProps {
   win: boolean;
   lossReason: LossReason | null;
   path: ConnectionNodeData[];
   cpuPath: ConnectionNodeData[];
+  solutionPath: ConnectionNodeData[];
+  loadingSolution: boolean;
   onPlayAgain: () => void;
   onChallenge: () => void;
   elapsedTime: number;
@@ -29,7 +32,7 @@ const PathDisplay: React.FC<{ title: string, path: ConnectionNodeData[], target:
          <div className="flex items-center overflow-x-auto p-2 snap-x snap-mandatory space-x-2 w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {path.map((node, index) => (
                 <React.Fragment key={`${node.type}-${node.id}-${index}`}>
-                    <div className="snap-center w-[72vw] sm:w-[58vw] md:w-[40vw] lg:w-56">
+                    <div className="snap-center w-[72vw] sm:w-64 md:w-64 lg:w-64">
                         <ConnectionNode data={node} isFirst={index === 0} isLast={node.type === 'actor' && node.id === target.id} />
                     </div>
                     {index < path.length - 1 && <LinkIcon />}
@@ -41,7 +44,7 @@ const PathDisplay: React.FC<{ title: string, path: ConnectionNodeData[], target:
 );
 
 
-const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, onPlayAgain, onChallenge, elapsedTime, target, gameMode }) => {
+const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, solutionPath, loadingSolution, onPlayAgain, onChallenge, elapsedTime, target, gameMode }) => {
   const playerDegrees = Math.floor((path.length - 1) / 2);
   const cpuDegrees = Math.floor((cpuPath.length - 1) / 2);
 
@@ -95,6 +98,15 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, o
        <div className="w-full max-w-5xl grid grid-cols-1 gap-8 px-2">
             <PathDisplay title="Your Final Path" path={path} target={target} />
             {gameMode === 'cpu' && <PathDisplay title="CPU's Final Path" path={cpuPath} target={target} />}
+            {!win && loadingSolution && (
+                <div className="text-center py-4 flex flex-col items-center">
+                    <LoadingSpinner />
+                    <p className="mt-2 text-gray-400 animate-pulse">Finding the optimal path...</p>
+                </div>
+            )}
+            {!win && !loadingSolution && solutionPath.length > 0 && (
+                <PathDisplay title="The Optimal Connection" path={solutionPath} target={target} />
+            )}
        </div>
         
         <div className="flex gap-4 items-center my-6 text-center text-lg">

@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 import { Actor, ConnectionNodeData, Movie } from "../types";
 
@@ -53,7 +54,21 @@ const getActorFromTmdb = async (name: string): Promise<Actor> => {
         name: actorResult.name,
         imageUrl: constructImageUrl(actorResult.profile_path),
     };
-}
+};
+
+const getMovieFromTmdb = async (title: string): Promise<Movie> => {
+    const data = await tmdbFetch(`/search/movie?query=${encodeURIComponent(title)}&include_adult=false&language=en-US&page=1`);
+    const movieResult = data.results?.[0];
+     if (!movieResult) {
+        throw new Error(`Could not find movie "${title}" on TMDB.`);
+    }
+    return {
+        id: movieResult.id,
+        type: 'movie',
+        title: movieResult.title,
+        imageUrl: constructImageUrl(movieResult.poster_path),
+    }
+};
 
 export const getActorById = async (id: number): Promise<Actor> => {
     const actorResult = await tmdbFetch(`/person/${id}?language=en-US`);
@@ -170,4 +185,64 @@ export const getCpuMove = async (
     });
 
     return selectedChoice || choices[Math.floor(Math.random() * choices.length)];
+};
+
+export const getSolutionPath = async (start: Actor, target: Actor): Promise<ConnectionNodeData[]> => {
+    const prompt = `
+        Find the shortest connection path between the actor "${start.name}" and the actor "${target.name}".
+        The path must be an alternating sequence of actor and movie, starting and ending with an actor.
+        For example: [Actor, Movie, Actor, Movie, Actor].
+        Provide the result as a JSON array of objects, where each object has a "type" ('actor' or 'movie') and a "name".
+        
+        Example for connecting Tom Hanks to Kevin Bacon:
+        [
+            {"type": "actor", "name": "Tom Hanks"},
+            {"type": "movie", "name": "Apollo 13"},
+            {"type": "actor", "name": "Kevin Bacon"}
+        ]
+    `;
+
+    const response = await ai.models.generateContent({
+        model: "gemini-2.5-pro",
+        contents: prompt,
+        config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+                type: Type.ARRAY,
+                items: {
+                    type: Type.OBJECT,
+                    properties: {
+                        type: { type: Type.STRING, enum: ['actor', 'movie'] },
+                        name: { type: Type.STRING, description: "The actor's name or the movie's title." }
+                    },
+                    required: ['type', 'name']
+                }
+            }
+        }
+    });
+
+    const parsedPath = parseJsonResponse<{ type: 'actor' | 'movie', name: string }[]>(response.text);
+
+    if (!parsedPath || parsedPath.length === 0) {
+        throw new Error("Could not find or parse solution path from Gemini.");
+    }
+
+    // Enrich the path with data from TMDB
+    const enrichedPath = await Promise.all(parsedPath.map(async (node): Promise<ConnectionNodeData> => {
+        try {
+            if (node.type === 'actor') {
+                return await getActorFromTmdb(node.name);
+            } else {
+                return await getMovieFromTmdb(node.name);
+            }
+        } catch (error) {
+            console.warn(`Could not find TMDB data for "${node.name}". Using placeholder.`);
+            const fallbackId = Date.now() + Math.random();
+            return node.type === 'actor'
+                ? { id: fallbackId, type: 'actor', name: node.name, imageUrl: constructImageUrl(null) }
+                : { id: fallbackId, type: 'movie', title: node.name, imageUrl: constructImageUrl(null) };
+        }
+    }));
+
+    return enrichedPath;
 };

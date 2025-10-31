@@ -139,7 +139,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
               <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center">
                   Choose the next connection:
               </h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-4">
               {choices.map((choice) => (
                 <ChoiceCard
                   key={`${choice.type}-${choice.id}`}
