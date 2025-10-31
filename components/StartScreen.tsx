@@ -1,14 +1,15 @@
 import React from 'react';
-import { Actor } from '../types';
+import { Actor, GameMode } from '../types';
 import ConnectionNode from './ConnectionNode';
 
 interface StartScreenProps {
-  onStartGame: () => void;
+  onStartGame: (mode: GameMode) => void;
+  onShowLeaderboard: () => void;
   start: Actor;
   target: Actor;
 }
 
-const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, start, target }) => {
+const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onShowLeaderboard, start, target }) => {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center p-4 bg-gray-900 text-white">
       <h1 className="text-4xl md:text-5xl font-extrabold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-400">
@@ -33,12 +34,26 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, start, target })
           <ConnectionNode data={target} isLast={true} />
         </div>
       </div>
-
-      <button
-        onClick={onStartGame}
-        className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-amber-300"
+      
+      <div className="flex flex-col sm:flex-row gap-4">
+        <button
+          onClick={() => onStartGame('solo')}
+          className="px-8 py-4 bg-gradient-to-r from-cyan-500 to-blue-500 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-cyan-300"
+        >
+          Play Solo
+        </button>
+        <button
+          onClick={() => onStartGame('cpu')}
+          className="px-8 py-4 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-amber-300"
+        >
+          Play vs. CPU
+        </button>
+      </div>
+       <button 
+        onClick={onShowLeaderboard}
+        className="mt-6 text-gray-400 hover:text-white transition-colors underline"
       >
-        Start Challenge
+        View Leaderboard
       </button>
     </div>
   );

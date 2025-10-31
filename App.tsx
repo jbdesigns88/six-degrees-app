@@ -1,18 +1,25 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { ConnectionNodeData, Actor, LossReason } from './types';
+import { ConnectionNodeData, Actor, LossReason, GameMode, Score } from './types';
 import * as geminiService from './services/geminiService';
+import * as localStorageService from './services/localStorageService';
 import StartScreen from './components/StartScreen';
 import GameBoard from './components/GameBoard';
 import EndScreen from './components/EndScreen';
 import Header from './components/Header';
+import LoginScreen from './components/LoginScreen';
+import LeaderboardScreen from './components/LeaderboardScreen';
+import ChallengeModal from './components/ChallengeModal';
 
-type GameStatus = 'loading' | 'start' | 'playing' | 'win' | 'lose';
+type View = 'login' | 'start' | 'playing' | 'win' | 'lose' | 'leaderboard';
 const MAX_PATH_LENGTH = 13; // 6 degrees
 const ROUND_TIME_SECONDS = 120;
 
 const App: React.FC = () => {
-    const [gameStatus, setGameStatus] = useState<GameStatus>('loading');
+    const [view, setView] = useState<View>('login');
     const [lossReason, setLossReason] = useState<LossReason | null>(null);
+    const [gameMode, setGameMode] = useState<GameMode>('cpu');
+    const [username, setUsername] = useState<string | null>(null);
+    const [showChallengeModal, setShowChallengeModal] = useState(false);
     
     // Player state
     const [path, setPath] = useState<ConnectionNodeData[]>([]);
@@ -29,43 +36,77 @@ const App: React.FC = () => {
 
     const isGameActiveRef = useRef(false);
 
-    const endGame = useCallback((status: 'win' | 'lose', reason: LossReason | null = null) => {
-        if (!isGameActiveRef.current) return; // Prevent multiple end-game calls
-        
-        isGameActiveRef.current = false;
-        setGameStatus(status);
-        setLossReason(reason);
-    }, []);
-
-    const resetGame = useCallback(async () => {
-        setGameStatus('loading');
+    const initializeNewGame = useCallback(async (challenge: {startId: number, targetId: number} | null = null) => {
+        setView('login');
         setPath([]);
         setCpuPath([]);
         setChoices([]);
         setElapsedTime(0);
         setLossReason(null);
         isGameActiveRef.current = false;
-
+        
         try {
-            const { start, target } = await geminiService.getInitialActors();
+            let start: Actor, target: Actor;
+            if (challenge) {
+                [start, target] = await Promise.all([
+                    geminiService.getActorById(challenge.startId),
+                    geminiService.getActorById(challenge.targetId)
+                ]);
+            } else {
+                ({ start, target } = await geminiService.getInitialActors());
+            }
             setStartActor(start);
             setTargetActor(target);
             setPath([start]);
             setCpuPath([start]);
-            setGameStatus('start');
+
+            // Check for existing user session
+            const savedUser = localStorageService.getUsername();
+            if (savedUser) {
+                setUsername(savedUser);
+                setView('start');
+            }
         } catch (error) {
             console.error("Failed to initialize game:", error);
+            // Handle error, maybe show an error screen
         }
     }, []);
 
+     // Check for challenge URL and initialize game on first load
     useEffect(() => {
-        resetGame();
-    }, [resetGame]);
+        const urlParams = new URLSearchParams(window.location.search);
+        const startId = urlParams.get('start');
+        const targetId = urlParams.get('target');
+        
+        if (startId && targetId) {
+            initializeNewGame({ startId: parseInt(startId), targetId: parseInt(targetId) });
+        } else {
+            initializeNewGame();
+        }
+    }, [initializeNewGame]);
+
+    const endGame = useCallback((status: 'win' | 'lose', reason: LossReason | null = null) => {
+        if (!isGameActiveRef.current) return;
+        
+        isGameActiveRef.current = false;
+        setView(status);
+        setLossReason(reason);
+
+        if (status === 'win' && username) {
+            const score: Score = {
+                playerName: username,
+                degrees: Math.floor((path.length - 1) / 2),
+                time: elapsedTime,
+                date: new Date().toISOString()
+            };
+            localStorageService.saveScore(score);
+        }
+    }, [username, path, elapsedTime]);
     
     // Game Timer
     useEffect(() => {
         let timer: ReturnType<typeof setInterval>;
-        if (gameStatus === 'playing') {
+        if (view === 'playing') {
             timer = setInterval(() => {
                 setElapsedTime(prevTime => {
                     if (prevTime + 1 >= ROUND_TIME_SECONDS) {
@@ -78,7 +119,7 @@ const App: React.FC = () => {
             }, 1000);
         }
         return () => clearInterval(timer);
-    }, [gameStatus, endGame]);
+    }, [view, endGame]);
 
     const fetchChoicesForPlayer = useCallback(async (node: ConnectionNodeData) => {
         setLoadingChoices(true);
@@ -93,16 +134,29 @@ const App: React.FC = () => {
         }
     }, []);
     
-    const startGame = () => {
+    const startGame = (mode: GameMode) => {
         if(startActor) {
+            setGameMode(mode);
             isGameActiveRef.current = true;
-            setGameStatus('playing');
+            setView('playing');
             fetchChoicesForPlayer(startActor);
         }
     };
 
+    const handleLogin = (name: string) => {
+        localStorageService.setUsername(name);
+        setUsername(name);
+        setView('start');
+    }
+
+    const handleLogout = () => {
+        localStorageService.clearUsername();
+        setUsername(null);
+        setView('login');
+    }
+
     const handleSelectChoice = (choice: ConnectionNodeData) => {
-        if (gameStatus !== 'playing' || !targetActor) return;
+        if (view !== 'playing' || !targetActor) return;
 
         const newPath = [...path, choice];
         setPath(newPath);
@@ -122,56 +176,54 @@ const App: React.FC = () => {
     
     // Independent CPU Logic
     useEffect(() => {
-        if (gameStatus !== 'playing' || !startActor || !targetActor) {
+        if (view !== 'playing' || !startActor || !targetActor || gameMode !== 'cpu') {
             return;
         }
 
         const runCpuLogic = async () => {
-            // FIX: Explicitly type `currentCpuPath` as `ConnectionNodeData[]`.
-            // TypeScript was incorrectly inferring the type as `Actor[]` from its initial value,
-            // which caused an error when a `Movie` node was added to the path.
             let currentCpuPath: ConnectionNodeData[] = [startActor];
 
             while (isGameActiveRef.current) {
                 const lastNode = currentCpuPath[currentCpuPath.length - 1];
-
-                // 1. Get choices for the current node
                 const cpuChoices = await geminiService.getChoices(lastNode);
                 if (!isGameActiveRef.current) break;
 
-                // 2. Pick the best choice (movie or actor)
-                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500)); // Human-like delay
+                await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 500));
                 const cpuMove = await geminiService.getCpuMove(currentCpuPath, cpuChoices, targetActor);
-                 if (!isGameActiveRef.current || !cpuMove) break;
+                if (!isGameActiveRef.current || !cpuMove) break;
                 
-                // 3. Update path
                 currentCpuPath = [...currentCpuPath, cpuMove];
                 setCpuPath(currentCpuPath);
 
-                // 4. Check for win/loss conditions
                 if (cpuMove.type === 'actor' && cpuMove.id === targetActor.id) {
                     endGame('lose', 'cpu_won');
                     break;
                 }
-                if (currentCpuPath.length >= MAX_PATH_LENGTH) {
-                    // CPU loses silently, just stops trying
-                    break; 
-                }
+                if (currentCpuPath.length >= MAX_PATH_LENGTH) break; 
             }
         };
-
         runCpuLogic();
-
-    }, [gameStatus, startActor, targetActor, endGame]);
+    }, [view, startActor, targetActor, endGame, gameMode]);
+    
+    const getChallengeUrl = () => {
+        if (!startActor || !targetActor) return '';
+        const url = new URL(window.location.href);
+        url.search = `?start=${startActor.id}&target=${targetActor.id}`;
+        return url.toString();
+    }
 
     const renderContent = () => {
-        if (gameStatus === 'loading' || !startActor || !targetActor) {
-            return <div className="flex justify-center items-center h-full"><p className="text-white text-xl animate-pulse">Initializing your cinematic challenge...</p></div>;
+        if (!startActor || !targetActor) {
+             return <div className="flex justify-center items-center h-full"><p className="text-white text-xl animate-pulse">Initializing your cinematic challenge...</p></div>;
         }
         
-        switch (gameStatus) {
+        switch (view) {
+            case 'login':
+                return <LoginScreen onLogin={handleLogin} />;
+            case 'leaderboard':
+                return <LeaderboardScreen onBack={() => setView('start')} />;
             case 'start':
-                return <StartScreen onStartGame={startGame} start={startActor} target={targetActor} />;
+                return <StartScreen onStartGame={startGame} start={startActor} target={targetActor} onShowLeaderboard={() => setView('leaderboard')} />;
             case 'playing':
                 return (
                     <GameBoard
@@ -183,18 +235,21 @@ const App: React.FC = () => {
                         loadingChoices={loadingChoices}
                         elapsedTime={elapsedTime}
                         maxPathLength={MAX_PATH_LENGTH}
+                        gameMode={gameMode}
                     />
                 );
             case 'win':
             case 'lose':
                 return <EndScreen 
-                            win={gameStatus === 'win'} 
+                            win={view === 'win'} 
                             lossReason={lossReason}
                             path={path} 
                             cpuPath={cpuPath}
-                            onPlayAgain={resetGame} 
+                            onPlayAgain={() => initializeNewGame()} 
+                            onChallenge={() => setShowChallengeModal(true)}
                             elapsedTime={elapsedTime} 
                             target={targetActor} 
+                            gameMode={gameMode}
                         />;
             default:
                 return null;
@@ -203,10 +258,16 @@ const App: React.FC = () => {
     
     return (
         <main className="bg-gray-900 text-white min-h-screen flex flex-col font-sans">
-            <Header />
+            <Header username={username} onLogout={handleLogout} />
             <div className="flex-grow">
               {renderContent()}
             </div>
+             {showChallengeModal && (
+                <ChallengeModal
+                    challengeUrl={getChallengeUrl()}
+                    onClose={() => setShowChallengeModal(false)}
+                />
+            )}
         </main>
     );
 };

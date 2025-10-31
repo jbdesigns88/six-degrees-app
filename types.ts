@@ -14,6 +14,8 @@ export interface Movie {
 
 export type ConnectionNodeData = Actor | Movie;
 
+export type GameMode = 'solo' | 'cpu';
+
 export interface GameState {
   path: ConnectionNodeData[];
   choices: ConnectionNodeData[];

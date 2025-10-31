@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ConnectionNodeData, Actor } from '../types';
+import { ConnectionNodeData, Actor, GameMode } from '../types';
 import ConnectionNode from './ConnectionNode';
 import LinkIcon from './icons/LinkIcon';
 import LoadingSpinner from './icons/LoadingSpinner';
@@ -14,6 +14,7 @@ interface GameBoardProps {
   loadingChoices: boolean;
   elapsedTime: number;
   maxPathLength: number;
+  gameMode: GameMode;
 }
 
 const ChoiceCard: React.FC<{ choice: ConnectionNodeData; onSelect: () => void; }> = ({ choice, onSelect }) => {
@@ -62,6 +63,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   loadingChoices,
   elapsedTime,
   maxPathLength,
+  gameMode,
 }) => {
   const lastNodeInPath = path[path.length - 1];
   const choiceType = lastNodeInPath?.type === 'actor' ? 'movies' : 'actors';
@@ -121,16 +123,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
                       <div className="text-2xl font-bold text-white">{playerDegrees}</div>
                       <div className="text-xs text-gray-400">degrees</div>
                   </div>
-                  <div className="px-4 border-x border-gray-700">
+                  <div className={`px-4 ${gameMode === 'cpu' ? 'border-x border-gray-700' : ''}`}>
                       <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Time</div>
                       <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
                       <div className="text-xs text-gray-400">elapsed</div>
                   </div>
-                  <div className="px-4">
-                      <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
-                      <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
-                      <div className="text-xs text-gray-400">degrees</div>
-                  </div>
+                  {gameMode === 'cpu' && (
+                    <div className="px-4">
+                        <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
+                        <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
+                        <div className="text-xs text-gray-400">degrees</div>
+                    </div>
+                  )}
               </div>
               <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center">
                   Choose the next connection:

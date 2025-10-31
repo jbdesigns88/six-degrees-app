@@ -55,6 +55,19 @@ const getActorFromTmdb = async (name: string): Promise<Actor> => {
     };
 }
 
+export const getActorById = async (id: number): Promise<Actor> => {
+    const actorResult = await tmdbFetch(`/person/${id}?language=en-US`);
+     if (!actorResult) {
+        throw new Error(`Could not find actor with ID "${id}" on TMDB.`);
+    }
+    return {
+        id: actorResult.id,
+        type: 'actor',
+        name: actorResult.name,
+        imageUrl: constructImageUrl(actorResult.profile_path),
+    }
+};
+
 export const getInitialActors = async (): Promise<{ start: Actor, target: Actor }> => {
     const prompt = `
         Generate two famous but distinct actors for a "Six Degrees of Separation" style game.
