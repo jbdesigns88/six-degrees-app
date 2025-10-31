@@ -51,6 +51,13 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
 
   const getEndGameMessage = () => {
       if (win) {
+          if (lossReason === 'opponent_left') {
+              return {
+                  title: "Opponent Left!",
+                  subtitle: `You win by default.`,
+                  titleClass: "text-green-400"
+              };
+          }
           return {
               title: "You Win!",
               subtitle: `Congratulations! You found the connection in ${playerDegrees} degrees.`,
@@ -120,8 +127,8 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
             {ratingChange !== undefined && (
                  <div className="bg-gray-800 p-3 rounded-lg min-w-[90px]">
                     <div className="text-sm text-gray-400">Rating</div>
-                    <div className={`text-2xl font-bold ${ratingChange > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {ratingChange > 0 ? `+${ratingChange}` : ratingChange}
+                    <div className={`text-2xl font-bold ${ratingChange >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {ratingChange >= 0 ? `+${ratingChange}` : ratingChange}
                     </div>
                     <div className="text-xs text-gray-500">change</div>
                 </div>

@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import * as localStorageService from '../services/localStorageService';
 
 interface LoginScreenProps {
   onLogin: (username: string) => void;
@@ -12,9 +11,6 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
     e.preventDefault();
     const trimmedUsername = username.trim();
     if (trimmedUsername) {
-      // Set username and initialize rating if it's a new user
-      localStorageService.setUsername(trimmedUsername);
-      localStorageService.getPlayerRating(trimmedUsername); // This initializes if not exists
       onLogin(trimmedUsername);
     }
   };

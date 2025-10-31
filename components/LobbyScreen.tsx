@@ -8,12 +8,6 @@ interface LobbyScreenProps {
   rating: number;
 }
 
-// Mock data as the socket service provides
-const MOCK_PLAYERS = [
-    { username: 'CinephileCarl', rating: 1350 },
-    { username: 'PopcornPenny', rating: 820 },
-    { username: 'MovieMavenMary', rating: 1800 },
-];
 
 const LobbyScreen: React.FC<LobbyScreenProps> = ({ onChallenge, onBack, username, rating }) => {
   return (
@@ -21,7 +15,9 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({ onChallenge, onBack, username
       <h1 className="text-4xl md:text-5xl font-extrabold my-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-400">
         Online Lobby
       </h1>
-      <p className="text-gray-300 mb-6">Create a challenge or wait for an opponent.</p>
+      <p className="text-gray-300 mb-6 text-center max-w-md">
+          Create a new challenge to generate a shareable link. Send it to a friend to start a real-time match!
+      </p>
 
       <div className="w-full max-w-md mb-6">
         <button
@@ -33,20 +29,14 @@ const LobbyScreen: React.FC<LobbyScreenProps> = ({ onChallenge, onBack, username
       </div>
       
       <div className="w-full max-w-md bg-gray-800/50 rounded-lg shadow-lg">
-        <div className="p-3 bg-gray-700/50 font-bold uppercase text-gray-400 text-sm">
-            Players Online
+        <div className="p-3 bg-gray-700/50 font-bold uppercase text-gray-400 text-sm text-center">
+            Your Info
         </div>
         <ul>
-            <li className="flex justify-between items-center p-3 border-b border-gray-700 bg-cyan-900/20">
+            <li className="flex justify-between items-center p-3 border-b border-gray-700 bg-cyan-900/20 last:border-b-0">
                 <span className="font-bold text-cyan-300">{username} (You)</span>
                 <span className="font-mono text-cyan-300">{rating}</span>
             </li>
-            {MOCK_PLAYERS.map(player => (
-                 <li key={player.username} className="flex justify-between items-center p-3 border-b border-gray-700 last:border-b-0">
-                    <span>{player.username}</span>
-                    <span className="font-mono text-gray-400">{player.rating}</span>
-                </li>
-            ))}
         </ul>
       </div>
 

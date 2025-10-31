@@ -17,20 +17,18 @@ import LinkIcon from './components/icons/LinkIcon';
 import * as geminiService from './services/geminiService';
 import * as localStorageService from './services/localStorageService';
 import * as ratingService from './services/ratingService';
-import { socketService, simulateOpponent } from './services/socketService';
+import * as userService from './services/userService';
+import * as challengeService from './services/challengeService';
+import { socketService } from './services/socketService';
 
-import { Actor, ConnectionNodeData, View, GameMode, CpuDifficulty, LossReason, Rating } from './types';
+import { Actor, ConnectionNodeData, View, GameMode, CpuDifficulty, LossReason, UserProfile } from './types';
 
 const MAX_PATH_LENGTH = 13; // 6 degrees + start actor
 const GAME_TIME_LIMIT = 300; // 5 minutes
 
 const App: React.FC = () => {
-    // App State
     const [view, setView] = useState<View>('login');
-    const [username, setUsername] = useState<string | null>(null);
-    const [playerRating, setPlayerRating] = useState<Rating | null>(null);
-
-    // Game State
+    const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
     const [gameMode, setGameMode] = useState<GameMode>('solo');
     const [startActor, setStartActor] = useState<Actor | null>(null);
     const [targetActor, setTargetActor] = useState<Actor | null>(null);
@@ -43,25 +41,20 @@ const App: React.FC = () => {
     const [lossReason, setLossReason] = useState<LossReason | null>(null);
     const [solutionPath, setSolutionPath] = useState<ConnectionNodeData[]>([]);
     const [ratingChange, setRatingChange] = useState<number | undefined>(undefined);
-    
-    // Online state
     const [challengeId, setChallengeId] = useState<string | null>(null);
-    const [opponent, setOpponent] = useState<{ username: string, rating: number } | null>(null);
+    const [opponent, setOpponent] = useState<UserProfile | null>(null);
     const [opponentPath, setOpponentPath] = useState<ConnectionNodeData[]>([]);
-
 
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const cpuTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pendingChallengeIdRef = useRef<string | null>(null);
 
-    // Initialization and URL parsing
     useEffect(() => {
         const path = window.location.pathname;
         const match = path.match(/^\/game\/([a-zA-Z0-9-]+)/);
 
         if (match && match[1]) {
-            const incomingChallengeId = match[1];
-            localStorage.setItem('pendingChallengeId', incomingChallengeId);
-            // Clean the URL to avoid re-triggering on refresh
+            pendingChallengeIdRef.current = match[1];
             window.history.replaceState(null, '', '/');
         }
         
@@ -69,9 +62,12 @@ const App: React.FC = () => {
         if (storedUsername) {
             handleLogin(storedUsername);
         }
+
+        return () => {
+            socketService.disconnect();
+        }
     }, []);
 
-    // Game Timer
     const stopTimer = useCallback(() => {
         if (timerRef.current) clearInterval(timerRef.current);
     }, []);
@@ -91,25 +87,32 @@ const App: React.FC = () => {
         }, 1000);
     }, [stopTimer]);
 
-    const handleLogin = useCallback((name: string) => {
-        setUsername(name);
-        const userRating = localStorageService.getPlayerRating(name);
-        setPlayerRating(userRating);
-        setView('start');
-        simulateOpponent(name);
-
-        const pendingChallengeId = localStorage.getItem('pendingChallengeId');
-        if (pendingChallengeId) {
-            localStorage.removeItem('pendingChallengeId');
-            acceptChallenge(pendingChallengeId, name, userRating.rating);
+    const handleLogin = useCallback(async (name: string) => {
+        try {
+            const profile = await userService.loginOrRegister(name);
+            setUserProfile(profile);
+            localStorageService.setUsername(name);
+            setView('start');
+            socketService.connect();
+            
+            if (pendingChallengeIdRef.current && profile) {
+                const challengeIdToJoin = pendingChallengeIdRef.current;
+                pendingChallengeIdRef.current = null;
+                setChallengeId(challengeIdToJoin);
+                setView('waiting'); 
+                socketService.emit('join', { challengeId: challengeIdToJoin, userId: profile.id });
+            }
+        } catch (error) {
+            console.error("Login failed:", error);
+            alert("Could not log in. Please check the server connection and try again.");
         }
     }, []);
     
     const handleLogout = () => {
         localStorageService.clearUsername();
-        setUsername(null);
-        setPlayerRating(null);
+        setUserProfile(null);
         setView('login');
+        socketService.disconnect();
     };
 
     const resetGameState = useCallback(() => {
@@ -135,12 +138,17 @@ const App: React.FC = () => {
     const startGame = useCallback(async (
         mode: GameMode,
         difficulty: CpuDifficulty = 'Casual',
-        challengeData: { startId: number, targetId: number } | null = null
+        challengeData: { startId: number, targetId: number, isJoining?: boolean } | null = null
     ) => {
-        // Reset parts of state but keep actors if from a challenge
-        if (mode !== 'online') resetGameState();
+        resetGameState();
         setGameMode(mode);
-        setView('game');
+        
+        // If creating a new online match, go to 'waiting'. Otherwise, go to 'game'.
+        if (mode === 'online' && !challengeData?.isJoining) {
+            setView('waiting');
+        } else {
+            setView('game');
+        }
         setLoading(prev => ({ ...prev, initial: true }));
 
         try {
@@ -160,12 +168,22 @@ const App: React.FC = () => {
             if (mode === 'cpu') setCpuPath([start]);
             if (mode === 'online') setOpponentPath([start]);
             
-            const initialChoices = await geminiService.getChoices(start);
-            setChoices(initialChoices);
-            startTimer();
-            if (mode === 'cpu') {
-                scheduleCpuMove([start], initialChoices, target, difficulty);
+            // For any mode except creating a new online game, fetch choices and start the timer immediately.
+            if (mode !== 'online' || challengeData?.isJoining) {
+                const initialChoices = await geminiService.getChoices(start);
+                setChoices(initialChoices);
+                startTimer();
             }
+
+            // If we are CREATING a new online game (i.e., not joining one)
+            if (mode === 'online' && !challengeData?.isJoining && userProfile) {
+                 const newChallengeId = `${userProfile.username.replace(/\s+/g, '-')}-${Date.now()}`;
+                 await challengeService.createChallenge(newChallengeId, start.id, target.id);
+                 setChallengeId(newChallengeId);
+                 socketService.emit('join', { challengeId: newChallengeId, userId: userProfile.id });
+                 // The view is already set to 'waiting'
+            }
+
         } catch (error) {
             console.error("Failed to start game:", error);
             alert("Could not start the game. Please try again.");
@@ -173,7 +191,7 @@ const App: React.FC = () => {
         } finally {
             setLoading(prev => ({ ...prev, initial: false }));
         }
-    }, [resetGameState, startTimer]);
+    }, [resetGameState, startTimer, userProfile]);
     
     const endGame = useCallback(async (didPlayerWin: boolean, reason: LossReason | null = null) => {
         stopTimer();
@@ -182,18 +200,7 @@ const App: React.FC = () => {
         setWin(didPlayerWin);
         setLossReason(reason);
         setView('end');
-
-        if (gameMode !== 'solo' && playerRating) {
-            const opponentRating = gameMode === 'cpu'
-                ? ratingService.getCpuRating(opponent?.username as CpuDifficulty || 'Casual')
-                : opponent?.rating || 1000;
-            const change = ratingService.calculateRatingChange(playerRating.rating, opponentRating, didPlayerWin);
-            setRatingChange(change);
-            const newRating = { ...playerRating, rating: playerRating.rating + change };
-            setPlayerRating(newRating);
-            localStorageService.setPlayerRating(newRating);
-        }
-
+        
         if (!didPlayerWin && startActor && targetActor) {
             setLoading(prev => ({ ...prev, solution: true }));
             try {
@@ -205,10 +212,10 @@ const App: React.FC = () => {
                 setLoading(prev => ({ ...prev, solution: false }));
             }
         }
-    }, [stopTimer, gameMode, startActor, targetActor, playerRating, opponent]);
+    }, [stopTimer, startActor, targetActor]);
     
     const handleSelectChoice = useCallback(async (choice: ConnectionNodeData) => {
-        if (loading.choices || !targetActor) return;
+        if (loading.choices || !targetActor || !userProfile) return;
 
         const newPath = [...path, choice];
         setPath(newPath);
@@ -217,156 +224,100 @@ const App: React.FC = () => {
         }
         setChoices([]);
 
-        if (choice.id === targetActor.id) {
-            endGame(true);
-            return;
+        if (gameMode !== 'online') {
+            if (choice.id === targetActor.id) {
+                endGame(true);
+                return;
+            }
+            if (newPath.length >= MAX_PATH_LENGTH) {
+                endGame(false, 'too_many_steps');
+                return;
+            }
         }
-
-        if (newPath.length >= MAX_PATH_LENGTH) {
-            endGame(false, 'too_many_steps');
-            return;
-        }
-
+        
+        // For online mode, the server will determine the winner. We just keep fetching choices.
+        // For solo mode, this code runs after the win/loss checks above.
         setLoading(prev => ({ ...prev, choices: true }));
         try {
             const nextChoices = await geminiService.getChoices(choice);
             setChoices(nextChoices);
         } catch (error) {
             console.error("Failed to get choices:", error);
-            alert("Could not load the next choices. The game may be stuck.");
         } finally {
             setLoading(prev => ({ ...prev, choices: false }));
         }
-    }, [path, targetActor, loading.choices, endGame, gameMode, challengeId]);
-
-    const scheduleCpuMove = useCallback((currentCpuPath: ConnectionNodeData[], currentChoices: ConnectionNodeData[], currentTarget: Actor, difficulty: CpuDifficulty) => {
-        if (win || lossReason) return;
-        const delay = difficulty === 'Casual' ? Math.random() * 8000 + 7000 : Math.random() * 4000 + 3000;
-        
-        cpuTimerRef.current = setTimeout(async () => {
-            setLoading(p => ({...p, cpu: true}));
-            const move = await geminiService.getCpuMove(currentCpuPath, currentChoices, currentTarget);
-            setLoading(p => ({...p, cpu: false}));
-            
-            if (move) {
-                const newCpuPath = [...currentCpuPath, move];
-                setCpuPath(newCpuPath);
-
-                if (move.id === currentTarget.id) {
-                    endGame(false, 'cpu_won');
-                    return;
-                }
-
-                if (newCpuPath.length >= MAX_PATH_LENGTH) {
-                    endGame(true);
-                    return;
-                }
-
-                const nextChoices = await geminiService.getChoices(move);
-                scheduleCpuMove(newCpuPath, nextChoices, currentTarget, difficulty);
-            }
-        }, delay);
-    }, [win, lossReason, endGame]);
-    
-    const handleNavigate = (newView: View) => setView(newView);
+    }, [path, targetActor, loading.choices, endGame, gameMode, challengeId, userProfile]);
 
     const handleCreateNewChallenge = useCallback(async () => {
-        if (!username) return;
-        setLoading(prev => ({ ...prev, initial: true }));
-        try {
-            const { start, target } = await geminiService.getInitialActors();
-            setStartActor(start);
-            setTargetActor(target);
-            const newChallengeId = `${username.replace(/\s+/g, '-')}-${Date.now()}`;
-            setChallengeId(newChallengeId);
-            socketService.emit('challenge:new', {
-                id: newChallengeId, from: username, startId: start.id, targetId: target.id,
-            });
-            setView('waiting');
-        } catch (error) {
-            console.error("Failed to create new challenge:", error);
-            alert("There was an error creating the challenge. Please try again.");
-        } finally {
-            setLoading(prev => ({ ...prev, initial: false }));
-        }
-    }, [username]);
-    
-    const acceptChallenge = useCallback((challengeId: string, acceptingUsername: string, acceptingUserRating: number) => {
-        socketService.emit('challenge:accepted', {
-            challengeId, acceptedBy: acceptingUsername, acceptedByRating: acceptingUserRating,
-        });
-        const unsubscribe = socketService.on('game:start', (gameData: { startId: number, targetId: number, opponent: { username: string, rating: number } }) => {
-            setOpponent(gameData.opponent);
-            setChallengeId(challengeId);
-            startGame('online', undefined, { startId: gameData.startId, targetId: gameData.targetId });
-            unsubscribe();
-        });
+        startGame('online');
     }, [startGame]);
 
-    useEffect(() => {
-        if (view !== 'waiting' || !challengeId || !startActor || !targetActor || !username || !playerRating) return;
-        const onChallengeAccepted = (data: { challengeId: string, acceptedBy: string, acceptedByRating: number }) => {
-            if (data.challengeId === challengeId) {
-                const opponentData = { username: data.acceptedBy, rating: data.acceptedByRating };
-                setOpponent(opponentData);
-                socketService.emit('game:start', {
-                    startId: startActor.id,
-                    targetId: targetActor.id,
-                    opponent: { username: username, rating: playerRating.rating }
-                });
-                startGame('online', undefined, { startId: startActor.id, targetId: targetActor.id });
-            }
-        };
-        const unsubscribe = socketService.on('challenge:accepted', onChallengeAccepted);
-        return () => unsubscribe();
-    }, [view, challengeId, startActor, targetActor, username, playerRating, startGame]);
+    const handleCancelChallenge = useCallback(() => {
+        if (challengeId) {
+            socketService.emit('challenge:cancel', { challengeId });
+        }
+        resetGameState();
+        setView('start');
+    }, [challengeId, resetGameState]);
 
+    // WebSocket Effects
     useEffect(() => {
-        if (gameMode !== 'online' || !challengeId) return;
-        const onOpponentMove = (data: { challengeId: string, path: ConnectionNodeData[] }) => {
-            if (data.challengeId === challengeId) {
-                setOpponentPath(data.path);
-                if(data.path[data.path.length-1]?.id === targetActor?.id) {
-                     endGame(false, 'opponent_won');
-                }
-            }
-        };
-        const unsubscribe = socketService.on('game:update', onOpponentMove);
-        return () => unsubscribe();
-    }, [gameMode, challengeId, targetActor, endGame]);
+        const unsubs: (()=>void)[] = [];
+        if(userProfile) {
+            unsubs.push(socketService.on('game:start', (payload) => {
+                setOpponent(payload.opponent);
+                startGame('online', undefined, { startId: payload.startId, targetId: payload.targetId, isJoining: true });
+            }));
+            unsubs.push(socketService.on('game:update', (payload) => {
+                setOpponentPath(payload.path);
+            }));
+            unsubs.push(socketService.on('game:over', (payload) => {
+                const didIWin = payload.winnerId === userProfile.id;
+                endGame(didIWin, didIWin ? null : 'opponent_won');
+            }));
+            unsubs.push(socketService.on('rating:update', (payload) => {
+                setRatingChange(payload.change);
+                setUserProfile(p => p ? { ...p, rating: payload.newRating } : null);
+            }));
+            unsubs.push(socketService.on('opponent:left', () => {
+                 endGame(true, 'opponent_left');
+            }));
+            unsubs.push(socketService.on('join:error', (payload) => {
+                alert(`Error joining challenge: ${payload.message}`);
+                setView('start');
+            }));
+        }
+        return () => unsubs.forEach(u => u());
 
+    }, [userProfile, startGame, endGame]);
+
+     const handleNavigate = (view: View) => setView(view);
 
     const renderContent = () => {
         switch (view) {
             case 'login': return <LoginScreen onLogin={handleLogin} />;
-            case 'start': return <StartScreen onStartGame={(mode, diff) => startGame(mode, diff)} onNavigate={handleNavigate} playerRating={playerRating} />;
+            case 'start': return <StartScreen onStartGame={(mode, diff) => startGame(mode, diff)} onNavigate={handleNavigate} playerRating={userProfile} />;
             case 'game':
                 if (loading.initial || !startActor || !targetActor) {
-                    return (
-                        <div className="flex flex-col items-center justify-center h-full">
-                            <div className="flex items-center p-4 snap-x space-x-3">
-                                <ConnectionNodeSkeleton isFirst />
-                                <LinkIcon />
-                                <ConnectionNodeSkeleton isLast />
-                            </div>
-                            <p className="mt-4 text-lg text-gray-400 animate-pulse">Setting the stage...</p>
-                        </div>
-                    );
+                    return <div className="flex flex-col items-center justify-center h-full"><div className="flex items-center p-4 snap-x space-x-3"><ConnectionNodeSkeleton isFirst /><LinkIcon /><ConnectionNodeSkeleton isLast /></div><p className="mt-4 text-lg text-gray-400 animate-pulse">Setting the stage...</p></div>;
                 }
                 return <GameBoard path={path} opponentPath={gameMode === 'cpu' ? cpuPath : opponentPath} target={targetActor} choices={choices} onSelectChoice={handleSelectChoice} loadingChoices={loading.choices} elapsedTime={elapsedTime} maxPathLength={MAX_PATH_LENGTH} gameMode={gameMode} opponent={opponent ?? undefined} />;
             case 'end':
-                return <EndScreen win={win} lossReason={lossReason} path={path} cpuPath={gameMode === 'cpu' ? cpuPath : opponentPath} solutionPath={solutionPath} loadingSolution={loading.solution} onPlayAgain={() => setView('start')} onChallenge={handleCreateNewChallenge} onNavigate={handleNavigate} elapsedTime={elapsedTime} target={targetActor!} gameMode={gameMode} ratingChange={ratingChange} />;
+                return <EndScreen win={win} lossReason={lossReason} path={path} cpuPath={gameMode === 'cpu' ? cpuPath : opponentPath} solutionPath={solutionPath} loadingSolution={loading.solution} onPlayAgain={() => { resetGameState(); setView('start');}} onChallenge={handleCreateNewChallenge} onNavigate={handleNavigate} elapsedTime={elapsedTime} target={targetActor!} gameMode={gameMode} ratingChange={ratingChange} />;
             case 'leaderboard': return <LeaderboardScreen onBack={() => setView('start')} />;
             case 'profile':
-                if (!username || !playerRating) return null;
-                return <ProfileScreen username={username} rating={playerRating.rating} rank={ratingService.getRank(playerRating.rating)} />;
+                if (!userProfile) return null;
+                return <ProfileScreen userProfile={userProfile} />;
             case 'settings': return <SettingsScreen onNavigate={handleNavigate} />;
             case 'howToPlay': return <HowToPlayScreen onBack={() => setView('settings')} />;
             case 'lobby':
-                 if (!username || !playerRating) return null;
-                return <LobbyScreen onChallenge={handleCreateNewChallenge} onBack={() => setView('start')} username={username} rating={playerRating.rating} />;
+                 if (!userProfile) return null;
+                return <LobbyScreen onChallenge={handleCreateNewChallenge} onBack={() => setView('start')} username={userProfile.username} rating={userProfile.rating} />;
             case 'waiting':
-                return <WaitingForOpponentScreen challengeId={challengeId!} onCancel={() => { setChallengeId(null); setView('start'); }} />;
+                if (loading.initial) {
+                     return <div className="flex flex-col items-center justify-center h-full"><div className="flex items-center p-4 snap-x space-x-3"><ConnectionNodeSkeleton isFirst /><LinkIcon /><ConnectionNodeSkeleton isLast /></div><p className="mt-4 text-lg text-gray-400 animate-pulse">Creating your challenge...</p></div>;
+                }
+                return <WaitingForOpponentScreen challengeId={challengeId!} onCancel={handleCancelChallenge} />;
             default:
                 return <LoginScreen onLogin={handleLogin} />;
         }
@@ -377,7 +328,7 @@ const App: React.FC = () => {
 
     return (
         <div className="bg-gray-900 text-white font-sans h-screen w-screen flex flex-col overflow-hidden">
-            {showHeader && <Header username={username} onLogout={handleLogout} />}
+            {showHeader && <Header username={userProfile?.username} onLogout={handleLogout} />}
             <main className="flex-grow overflow-y-auto" style={{ paddingBottom: showNav ? '70px' : '0' }}>
                 {renderContent()}
             </main>

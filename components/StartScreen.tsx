@@ -1,12 +1,12 @@
 
 import React from 'react';
-import { Rating, View } from '../types';
+import { UserProfile, View } from '../types';
 import { getRank } from '../services/ratingService';
 
 interface StartScreenProps {
   onStartGame: (mode: 'solo' | 'cpu', difficulty?: 'Casual' | 'Pro') => void;
   onNavigate: (view: View) => void;
-  playerRating: Rating | null;
+  playerRating: UserProfile | null;
 }
 
 const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onNavigate, playerRating }) => {
@@ -42,15 +42,15 @@ const StartScreen: React.FC<StartScreenProps> = ({ onStartGame, onNavigate, play
         </button>
         
         {/* Play vs CPU Casual */}
-        <button onClick={() => onStartGame('cpu', 'Casual')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-green-500/30 focus:outline-none focus:ring-2 focus:ring-green-400">
+        <button disabled className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-green-500/30 focus:outline-none focus:ring-2 focus:ring-green-400 disabled:opacity-50 disabled:cursor-not-allowed">
           <h2 className="text-xl font-bold text-green-300">Vs. CPU (Casual)</h2>
-          <p className="text-gray-400 mt-1 text-sm">A relaxed match against an AI opponent. Good for learning the ropes.</p>
+          <p className="text-gray-400 mt-1 text-sm">A relaxed match against an AI opponent. (Coming soon)</p>
         </button>
 
         {/* Play vs CPU Pro */}
-        <button onClick={() => onStartGame('cpu', 'Pro')} className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-red-500/30 focus:outline-none focus:ring-2 focus:ring-red-400">
+        <button disabled className="p-6 bg-gray-800 rounded-lg shadow-lg text-left transition-transform transform hover:scale-105 hover:shadow-red-500/30 focus:outline-none focus:ring-2 focus:ring-red-400 disabled:opacity-50 disabled:cursor-not-allowed">
           <h2 className="text-xl font-bold text-red-300">Vs. CPU (Pro)</h2>
-          <p className="text-gray-400 mt-1 text-sm">Face a tougher AI. A true test of your connection-finding speed.</p>
+          <p className="text-gray-400 mt-1 text-sm">Face a tougher AI. (Coming soon)</p>
         </button>
       </div>
       

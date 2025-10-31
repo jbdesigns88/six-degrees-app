@@ -1,22 +1,19 @@
 {
-  "name": "six-degrees-–-the-movie-connection-game",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
+  "name": "six-degrees-game",
+  "version": "1.0.0",
+  "description": "Six Degrees – The Movie Connection Game with a Node.js backend.",
+  "main": "server/index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "server": "node server/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "@google/genai": "^1.28.0",
-    "react-dom": "^19.2.0",
-    "react": "^19.2.0"
-  },
-  "devDependencies": {
-    "@types/node": "^22.14.0",
-    "@vitejs/plugin-react": "^5.0.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "@supabase/supabase-js": "^2.45.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
   }
 }

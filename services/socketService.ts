@@ -1,78 +1,48 @@
-// This is a mock socket service to simulate real-time communication
-// between two players in different browser tabs.
-// It uses BroadcastChannel to send messages.
+import { io, Socket } from 'socket.io-client';
 
-const CHANNEL_NAME = 'six-degrees-game';
-const channel = new BroadcastChannel(CHANNEL_NAME);
+class SocketService {
+    private socket: Socket | null = null;
 
-type EventCallback = (data: any) => void;
-
-const listeners: { [key: string]: EventCallback[] } = {};
-
-channel.onmessage = (event) => {
-  const { type, data } = event.data;
-  if (listeners[type]) {
-    listeners[type].forEach(callback => callback(data));
-  }
-};
-
-const on = (eventType: string, callback: EventCallback) => {
-  if (!listeners[eventType]) {
-    listeners[eventType] = [];
-  }
-  listeners[eventType].push(callback);
-
-  // Return an unsubscribe function
-  return () => {
-    listeners[eventType] = listeners[eventType].filter(cb => cb !== callback);
-  };
-};
-
-const emit = (eventType: string, data: any) => {
-  channel.postMessage({ type: eventType, data });
-};
-
-const off = (eventType: string) => {
-    delete listeners[eventType];
-};
-
-
-export const socketService = {
-  on,
-  emit,
-  off,
-};
-
-// --- Mocking other players in the lobby ---
-const MOCK_PLAYERS = [
-    { username: 'CinephileCarl', rating: 1350 },
-    { username: 'PopcornPenny', rating: 820 },
-    { username: 'MovieMavenMary', rating: 1800 },
-];
-
-// This function simulates another player accepting a challenge
-export const simulateOpponent = (currentUser: string) => {
-    const onChallenge = (challenge: any) => {
-        // Don't accept our own challenges
-        if (challenge.from === currentUser) return;
-
-        console.log(`Simulated opponent is considering challenge from ${challenge.from}`);
-        // Randomly decide to accept
-        if (Math.random() > 0.3) {
-            const opponent = MOCK_PLAYERS[Math.floor(Math.random() * MOCK_PLAYERS.length)];
-            console.log(`${opponent.username} accepts the challenge!`);
-            setTimeout(() => {
-                emit('challenge:accepted', {
-                    challengeId: challenge.id,
-                    acceptedBy: opponent.username,
-                    acceptedByRating: opponent.rating,
-                });
-            }, 1500);
+    connect() {
+        if (this.socket) {
+            return;
         }
-    };
-    
-    const unsubscribe = on('challenge:new', onChallenge);
 
-    // Return a cleanup function
-    return () => unsubscribe();
-};
+        // With no args, io() connects to the same host that serves the page.
+        this.socket = io();
+
+        this.socket.on('connect', () => {
+            console.log('Connected to socket server');
+        });
+
+        this.socket.on('disconnect', () => {
+            console.log('Disconnected from socket server');
+        });
+    }
+
+    disconnect() {
+        if (this.socket) {
+            this.socket.disconnect();
+            this.socket = null;
+        }
+    }
+
+    emit(event: string, data: any) {
+        if (this.socket) {
+            this.socket.emit(event, data);
+        }
+    }
+
+    on(event: string, callback: (data: any) => void): () => void {
+        if (this.socket) {
+            this.socket.on(event, callback);
+            // Return an unsubscribe function
+            return () => this.socket?.off(event, callback);
+        }
+        // If socket is not available, return an empty function
+        return () => {};
+    }
+}
+
+// Export a singleton instance of the service
+export const socketService = new SocketService();
