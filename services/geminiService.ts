@@ -152,7 +152,6 @@ export const getChoices = async (node: ConnectionNodeData): Promise<ConnectionNo
         const movies: Movie[] = data.cast
             .filter((movie: any) => movie.poster_path)
             .sort((a: any, b: any) => b.popularity - a.popularity)
-            .slice(0, 10) // Get top 10 popular movies
             .map((movie: any) => ({
                 id: movie.id,
                 type: 'movie',
@@ -165,7 +164,6 @@ export const getChoices = async (node: ConnectionNodeData): Promise<ConnectionNo
         const actors: Actor[] = data.cast
             .filter((person: any) => person.known_for_department === 'Acting' && person.profile_path)
             .sort((a: any, b: any) => b.popularity - a.popularity)
-            .slice(0, 10) // Get top 10 popular actors
             .map((actor: any) => ({
                 id: actor.id,
                 type: 'actor',

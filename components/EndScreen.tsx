@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ConnectionNodeData, Actor, GameMode, LossReason } from '../types';
 import ConnectionNode from './ConnectionNode';
@@ -33,7 +34,7 @@ const PathDisplay: React.FC<{ title: string, path: ConnectionNodeData[], target:
          <div className="flex items-center overflow-x-auto p-2 snap-x snap-mandatory space-x-2 w-full" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {path.map((node, index) => (
                 <React.Fragment key={`${node.type}-${node.id}-${index}`}>
-                    <div className="snap-center w-[72vw] sm:w-64 md:w-64 lg:w-64">
+                    <div className="snap-center w-48 flex-shrink-0">
                         <ConnectionNode data={node} isFirst={index === 0} isLast={node.type === 'actor' && node.id === target.id} />
                     </div>
                     {index < path.length - 1 && <LinkIcon />}
