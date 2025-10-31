@@ -62,13 +62,6 @@ apiRouter.get('/users/leaderboard', async (req, res) => {
 
 app.use('/api', apiRouter);
 
-// Static File Serving & SPA Fallback
-const staticPath = path.join(__dirname, '..');
-app.use(express.static(staticPath));
-app.get('*', (req, res) => {
-    res.sendFile(path.join(staticPath, 'index.html'));
-});
-
 // Socket.IO Logic
 const challenges = new Map();
 
@@ -175,6 +168,13 @@ io.on('connection', (socket) => {
             console.log(`Player ${userId} disconnected from challenge ${challengeId}.`);
         }
     });
+});
+
+// Static File Serving & SPA Fallback
+const staticPath = path.join(__dirname, '..');
+app.use(express.static(staticPath));
+app.get('*', (req, res) => {
+    res.sendFile(path.join(staticPath, 'index.html'));
 });
 
 server.listen(PORT, () => {
