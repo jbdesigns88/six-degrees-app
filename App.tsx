@@ -176,6 +176,7 @@ const App: React.FC = () => {
                 return (
                     <GameBoard
                         path={path}
+                        cpuPath={cpuPath}
                         target={targetActor}
                         choices={choices}
                         onSelectChoice={handleSelectChoice}

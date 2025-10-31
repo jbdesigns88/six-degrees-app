@@ -7,6 +7,7 @@ import GameHeader from './GameHeader';
 
 interface GameBoardProps {
   path: ConnectionNodeData[];
+  cpuPath: ConnectionNodeData[];
   target: Actor;
   choices: ConnectionNodeData[];
   onSelectChoice: (choice: ConnectionNodeData) => void;
@@ -18,14 +19,14 @@ interface GameBoardProps {
 const ChoiceCard: React.FC<{ choice: ConnectionNodeData; onSelect: () => void; }> = ({ choice, onSelect }) => {
     const [imgLoaded, setImgLoaded] = useState(false);
     const name = choice.type === 'actor' ? choice.name : choice.title;
-    const placeholderUrl = `https://via.placeholder.com/200x288/1f2937/4b5563?text=${encodeURIComponent(name)}`;
+    const placeholderUrl = `https://via.placeholder.com/200x300/1f2937/4b5563?text=${encodeURIComponent(name)}`;
 
     return (
         <button
             onClick={onSelect}
-            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-transform transform hover:scale-105 hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-cyan-400"
+            className="bg-gray-800 rounded-lg overflow-hidden shadow-lg transition-transform transform hover:scale-105 hover:shadow-cyan-500/30 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-cyan-400 flex flex-col"
           >
-            <div className="relative w-full h-40 md:h-48">
+            <div className="relative w-full aspect-[2/3]">
               {!imgLoaded && <div className="absolute inset-0 bg-gray-700 animate-pulse"></div>}
               <img 
                   src={choice.imageUrl} 
@@ -38,16 +39,23 @@ const ChoiceCard: React.FC<{ choice: ConnectionNodeData; onSelect: () => void; }
                   }}
               />
             </div>
-            <div className="p-2 text-center">
-              <p className="font-bold text-sm text-white truncate">{name}</p>
+            <div className="p-2 text-center flex-grow flex flex-col justify-center">
+              <p className="font-bold text-xs sm:text-sm text-white leading-tight">{name}</p>
               <p className="text-xs text-cyan-400 capitalize">{choice.type}</p>
             </div>
           </button>
     );
 }
 
+const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60).toString().padStart(2, '0');
+    const secs = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return `${mins}:${secs}`;
+};
+
 const GameBoard: React.FC<GameBoardProps> = ({
   path,
+  cpuPath,
   target,
   choices,
   onSelectChoice,
@@ -58,6 +66,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const lastNodeInPath = path[path.length - 1];
   const choiceType = lastNodeInPath?.type === 'actor' ? 'movies' : 'actors';
   const startActor = path[0] as Actor;
+  const playerDegrees = Math.floor(path.length / 2);
+  const cpuDegrees = Math.floor(cpuPath.length / 2);
 
   return (
     <div className="flex flex-col h-full">
@@ -105,11 +115,30 @@ const GameBoard: React.FC<GameBoardProps> = ({
           </div>
         ) : (
           <div className="w-full h-full flex flex-col">
-            <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center flex-shrink-0">
-              Choose the next connection:
-            </h2>
+            <div className="flex-shrink-0">
+                <div className="flex justify-around items-center w-full max-w-sm mx-auto mb-4 text-center border-y border-gray-700 py-3">
+                    <div className="px-4">
+                        <div className="text-sm font-semibold text-cyan-300 uppercase tracking-wider">You</div>
+                        <div className="text-2xl font-bold text-white">{playerDegrees}</div>
+                        <div className="text-xs text-gray-400">degrees</div>
+                    </div>
+                    <div className="px-4 border-x border-gray-700">
+                        <div className="text-sm font-semibold text-gray-300 uppercase tracking-wider">Time</div>
+                        <div className="text-2xl font-bold text-white">{formatTime(elapsedTime)}</div>
+                        <div className="text-xs text-gray-400">elapsed</div>
+                    </div>
+                    <div className="px-4">
+                        <div className="text-sm font-semibold text-amber-300 uppercase tracking-wider">CPU</div>
+                        <div className="text-2xl font-bold text-white">{cpuDegrees}</div>
+                        <div className="text-xs text-gray-400">degrees</div>
+                    </div>
+                </div>
+                <h2 className="text-lg font-bold text-cyan-300 mb-4 text-center">
+                    Choose the next connection:
+                </h2>
+            </div>
             <div className="overflow-y-auto flex-grow -mx-4">
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 p-4">
+              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-3 p-4">
                 {choices.map((choice) => (
                   <ChoiceCard
                     key={`${choice.type}-${choice.id}`}
