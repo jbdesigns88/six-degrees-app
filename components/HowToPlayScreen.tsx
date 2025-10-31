@@ -1,11 +1,9 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { RANKS } from '../services/ratingService';
 
-interface HowToPlayScreenProps {
-  onBack: () => void;
-}
-
-const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
+const HowToPlayScreen: React.FC = () => {
+  const navigate = useNavigate();
   return (
     <div className="flex flex-col items-center h-full p-4 md:p-6 bg-gray-900 text-white overflow-y-auto">
       <h1 className="text-4xl md:text-5xl font-extrabold my-6 text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-amber-400">
@@ -60,7 +58,7 @@ const HowToPlayScreen: React.FC<HowToPlayScreenProps> = ({ onBack }) => {
       </div>
 
        <button
-        onClick={onBack}
+        onClick={() => navigate('/settings')}
         className="mt-8 px-8 py-4 bg-gray-700 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-gray-500"
       >
         Back

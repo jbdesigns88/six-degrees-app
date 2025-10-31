@@ -12,7 +12,7 @@ interface EndScreenProps {
   solutionPath: ConnectionNodeData[];
   loadingSolution: boolean;
   onPlayAgain: () => void;
-  onNavigate: (view: 'start') => void;
+  onNavigate: () => void;
   onChallenge: () => void;
   elapsedTime: number;
   target: Actor;
@@ -84,6 +84,12 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
                   subtitle: "You've reached the maximum number of connections.",
                   titleClass: "text-red-500"
               };
+          case 'opponent_left':
+              return {
+                  title: "Opponent Left",
+                  subtitle: "Your opponent disconnected from the game.",
+                  titleClass: "text-yellow-500"
+              }
           default:
               return {
                   title: "Game Over",
@@ -106,7 +112,7 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
 
        <div className="w-full max-w-5xl grid grid-cols-1 gap-8 px-2">
             <PathDisplay title="Your Final Path" path={path} target={target} />
-            {gameMode !== 'solo' && <PathDisplay title={gameMode === 'cpu' ? "CPU's Path" : "Opponent's Path"} path={cpuPath} target={target} />}
+            {gameMode !== 'solo' && cpuPath.length > 1 && <PathDisplay title={gameMode === 'cpu' ? "CPU's Path" : "Opponent's Path"} path={cpuPath} target={target} />}
             {!win && loadingSolution && (
                 <div className="text-center py-4 flex flex-col items-center">
                     <LoadingSpinner />
@@ -149,7 +155,7 @@ const EndScreen: React.FC<EndScreenProps> = ({ win, lossReason, path, cpuPath, s
             Challenge a Friend
         </button>}
          <button
-            onClick={() => onNavigate('start')}
+            onClick={onNavigate}
             className="px-8 py-4 bg-gray-700 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-gray-500"
         >
             Back to Home

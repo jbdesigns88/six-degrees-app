@@ -87,10 +87,9 @@ io.on('connection', (socket) => {
             const playerIds = [...challenge.players.keys()];
             const loserId = playerIds.find(id => id !== winnerId);
             
-            io.to(challengeId).emit('game:over', { winnerId });
+            let ratingChanges = {};
 
             if (loserId) {
-                // Handle rating updates for a 2-player game
                 const [{ data: winnerProfile }, { data: loserProfile }] = await Promise.all([
                     supabase.from('profiles').select('rating').eq('id', winnerId).single(),
                     supabase.from('profiles').select('rating').eq('id', loserId).single()
@@ -109,14 +108,14 @@ io.on('connection', (socket) => {
                         supabase.from('profiles').update({ rating: newLoserRating }).eq('id', loserId)
                     ]);
                     
-                    const winnerSocketId = userSockets.get(winnerId);
-                    if (winnerSocketId) io.to(winnerSocketId).emit('rating:update', { change: ratingChange, newRating: newWinnerRating });
-
-                    const loserSocketId = userSockets.get(loserId);
-                    if (loserSocketId) io.to(loserSocketId).emit('rating:update', { change: -ratingChange, newRating: newLoserRating });
+                    ratingChanges = {
+                        [winnerId]: ratingChange,
+                        [loserId]: -ratingChange
+                    };
                 }
             }
 
+            io.to(challengeId).emit('game:over', { winnerId, ratingChanges });
             challenges.delete(challengeId);
             console.log(`Game over for challenge ${challengeId}. Winner: ${winnerId}`);
         } catch (error) {
@@ -138,7 +137,11 @@ io.on('connection', (socket) => {
             userSockets.delete(userId);
         }
         if (challengeId && challenges.has(challengeId)) {
-            socket.to(challengeId).emit('opponent:left');
+            const challenge = challenges.get(challengeId);
+            challenge.players.delete(userId); // Remove player from challenge
+            if (challenge.players.size > 0) {
+                 socket.to(challengeId).emit('opponent:left');
+            }
             challenges.delete(challengeId);
             console.log(`Challenge ${challengeId} removed due to disconnect.`);
         }
@@ -197,10 +200,6 @@ const staticPath = path.resolve(__dirname, '..');
 console.log(`Serving static files from: ${staticPath}`);
 app.use(express.static(staticPath));
 
-// Catch-all route for Single Page Application (SPA) support.
-// Any GET request that is not an API call and not a static file
-// will be served the main index.html file.
-// This allows client-side routing and deep linking (e.g., /game/:id) to work.
 app.get('*', (req, res) => {
     res.sendFile(path.resolve(staticPath, 'index.html'));
 });

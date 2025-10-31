@@ -1,17 +1,15 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserProfile } from '../types';
 import * as userService from '../services/userService';
 import { getRank } from '../services/ratingService';
 import LoadingSpinner from './icons/LoadingSpinner';
 
-interface LeaderboardScreenProps {
-  onBack: () => void;
-}
-
-const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack }) => {
+const LeaderboardScreen: React.FC = () => {
   const [players, setPlayers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchLeaderboard = async () => {
@@ -91,7 +89,7 @@ const LeaderboardScreen: React.FC<LeaderboardScreenProps> = ({ onBack }) => {
       </div>
 
       <button
-        onClick={onBack}
+        onClick={() => navigate('/')}
         className="mt-8 px-8 py-4 bg-gray-700 text-white font-bold rounded-full shadow-lg hover:scale-105 transform transition-transform duration-300 focus:outline-none focus:ring-4 focus:ring-gray-500"
       >
         Back

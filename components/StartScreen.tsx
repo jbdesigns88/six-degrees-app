@@ -1,10 +1,9 @@
-
 import React from 'react';
-import { UserProfile, View } from '../types';
+import { UserProfile, View, GameMode, CpuDifficulty } from '../types';
 import { getRank } from '../services/ratingService';
 
 interface StartScreenProps {
-  onStartGame: (mode: 'solo' | 'cpu', difficulty?: 'Casual' | 'Pro') => void;
+  onStartGame: (mode: GameMode, difficulty?: CpuDifficulty) => void;
   onNavigate: (view: View) => void;
   playerRating: UserProfile | null;
 }
