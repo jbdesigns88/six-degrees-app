@@ -1,0 +1,15 @@
+AI Studio Configuration
+- Set `VITE_API_BASE_URL` to the deployed backend URL ending in `/api` (e.g., `https://six-degrees-api.example.com/api`).
+- Set `VITE_SOCKET_URL` (if used) to the same backend origin without the `/api` suffix.
+- Redeploy the AI Studio project after updating these environment variables so the frontend picks up the new endpoints.
+- Add `server/.env` with `SUPABASE_PROJECT_URL` and `SUPABASE_API_KEY` (anon key) so `server/index.js` can start.
+- Update `services/userService.ts:3` to read `import.meta.env.VITE_API_BASE_URL` with a sensible default for local dev (e.g., `http://localhost:3001/api`).
+- Update `services/socketService.ts:17` to call `io(import.meta.env.VITE_SOCKET_URL ?? 'http://localhost:3001', { query: { userId } })`.
+- Change `server/index.js:174` to serve `path.join(__dirname, '..', 'dist')` and add a build step (`vite build`) before launch so Express serves compiled assets.
+- Implement Supabase Auth on the frontend (sign-up/login with email + password) and send the access token in `userService.loginOrRegister`; on the backend validate the token via Supabase and map the authenticated user ID to the `profiles` row instead of accepting a raw username.
+- Populate `_redirects` with `/* /index.html 200` (or equivalent host config) so challenge deep links work when shared.
+
+Joseph TO DO
+- Create the `profiles` table in Supabase using the SQL from `README.md` and confirm Row Level Security policies are applied.
+- Deploy the Node/Express server (Render, Fly.io, Cloud Run, etc.) after confirming it runs locally with `npm run server`.
+- After deploying, test login, leaderboard, challenge creation, and challenge URL sharing end-to-end to confirm 200 responses and working sockets.
